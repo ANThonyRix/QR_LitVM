@@ -1,7 +1,7 @@
 'use client'
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contract'
-import { parseEther } from 'viem'
+import { decodeEventLog, parseEther } from 'viem'
 
 export function useCreateRequest() {
   const { writeContract, data: hash, isPending, error } = useWriteContract()
@@ -19,7 +19,23 @@ export function useCreateRequest() {
   const { isLoading: isConfirming, data: receipt } =
     useWaitForTransactionReceipt({ hash })
 
-  const requestId = receipt?.logs?.[0]?.topics?.[1] as `0x${string}` | undefined
+  const requestId = receipt?.logs
+    ?.map(log => {
+      try {
+        const decoded = decodeEventLog({
+          abi: CONTRACT_ABI,
+          data: log.data,
+          topics: log.topics,
+        })
+
+        return decoded.eventName === 'RequestCreated'
+          ? (decoded.args.id as `0x${string}`)
+          : undefined
+      } catch {
+        return undefined
+      }
+    })
+    .find(Boolean)
 
   return { create, hash, isPending, isConfirming, requestId, error }
 }
