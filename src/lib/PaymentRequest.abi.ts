@@ -48,6 +48,16 @@ export const PAYMENT_REQUEST_ABI = [
     name: 'UsernameRegistered',
     type: 'event',
   },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true,  internalType: 'address', name: 'user',        type: 'address' },
+      { indexed: false, internalType: 'string',  name: 'oldUsername', type: 'string'  },
+      { indexed: false, internalType: 'string',  name: 'newUsername', type: 'string'  },
+    ],
+    name: 'UsernameChanged',
+    type: 'event',
+  },
   { stateMutability: 'payable', type: 'fallback' },
   {
     inputs: [{ internalType: 'address', name: '', type: 'address' }],
@@ -106,6 +116,13 @@ export const PAYMENT_REQUEST_ABI = [
     name: 'usernameToAddress',
     outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'string', name: 'newUsername', type: 'string' }],
+    name: 'changeUsername',
+    outputs: [],
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {

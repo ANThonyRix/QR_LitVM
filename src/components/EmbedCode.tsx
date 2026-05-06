@@ -20,18 +20,18 @@ export function EmbedCode({ requestId }: Props) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Вставь код кнопки «Оплатить» на свой сайт:
+        Embed the "Pay" button on your site:
       </p>
       <pre className="bg-muted rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
         {code}
       </pre>
       <Button variant="outline" className="w-full" onClick={copy}>
-        {copied ? 'Скопировано!' : 'Копировать код'}
+        {copied ? 'Copied!' : 'Copy code'}
       </Button>
       <p className="text-xs text-muted-foreground">
-        Предпросмотр:{' '}
+        Preview:{' '}
         <a href={`/widget/${requestId}`} target="_blank" className="underline">
-          открыть
+          open
         </a>
       </p>
     </div>

@@ -36,6 +36,11 @@ contract PaymentRequest {
         address indexed user,
         string username
     );
+    event UsernameChanged(
+        address indexed user,
+        string oldUsername,
+        string newUsername
+    );
     event ProceedsQueued(
         address indexed recipient,
         uint256 amount
@@ -106,6 +111,25 @@ contract PaymentRequest {
         addressToUsername[msg.sender] = username;
 
         emit UsernameRegistered(msg.sender, username);
+    }
+
+    function changeUsername(string calldata newUsername) external {
+        bytes memory usernameBytes = bytes(newUsername);
+        require(usernameBytes.length >= 3,  "Min 3 chars");
+        require(usernameBytes.length <= 32, "Max 32 chars");
+        _validateUsername(usernameBytes);
+        require(usernameToAddress[newUsername] == address(0), "Taken");
+
+        string memory oldUsername = addressToUsername[msg.sender];
+        if (bytes(oldUsername).length > 0) {
+            delete usernameToAddress[oldUsername];
+        }
+
+        usernameToAddress[newUsername] = msg.sender;
+        addressToUsername[msg.sender] = newUsername;
+
+        emit UsernameChanged(msg.sender, oldUsername, newUsername);
+        emit UsernameRegistered(msg.sender, newUsername);
     }
 
     function withdrawProceeds(address payable to) external nonReentrant {

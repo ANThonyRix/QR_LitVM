@@ -18,11 +18,11 @@ export function PayButton({ requestId, fixedAmount, paid }: Props) {
   const [customAmount, setCustomAmount] = useState('')
 
   if (paid || isSuccess) {
-    return <p className="text-green-600 font-medium">Оплата подтверждена!</p>
+    return <p className="text-green-600 font-medium">Payment confirmed!</p>
   }
 
   if (!isConnected) {
-    return <p className="text-sm text-muted-foreground">Подключи кошелёк для оплаты</p>
+    return <p className="text-sm text-muted-foreground">Connect wallet to pay</p>
   }
 
   const amount = fixedAmount > 0n ? formatEther(fixedAmount) : customAmount
@@ -32,7 +32,7 @@ export function PayButton({ requestId, fixedAmount, paid }: Props) {
       {fixedAmount === 0n && (
         <Input
           type="number"
-          placeholder="Введи сумму zkLTC"
+          placeholder="Enter zkLTC amount"
           value={customAmount}
           onChange={e => setCustomAmount(e.target.value)}
           min="0.001"
@@ -45,9 +45,9 @@ export function PayButton({ requestId, fixedAmount, paid }: Props) {
         disabled={!amount || isPending || isConfirming}
         onClick={() => pay(requestId, amount)}
       >
-        {isPending ? 'Подтверди в кошельке...' :
-         isConfirming ? 'Транзакция...' :
-         `Оплатить ${amount} zkLTC`}
+        {isPending ? 'Confirm in wallet...' :
+         isConfirming ? 'Processing...' :
+         `Pay ${amount} zkLTC`}
       </Button>
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
     </div>

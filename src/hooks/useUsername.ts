@@ -24,12 +24,22 @@ export function useUsername() {
     })
   }
 
+  const change = (newUsername: string) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: 'changeUsername',
+      args: [newUsername],
+    })
+  }
+
   const { isLoading: isConfirming, isSuccess } =
     useWaitForTransactionReceipt({ hash })
 
   return {
     myUsername: myUsername as string | undefined,
     register,
+    change,
     isPending,
     isConfirming,
     isSuccess,

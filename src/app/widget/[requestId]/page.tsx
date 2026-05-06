@@ -17,11 +17,11 @@ export default function WidgetPage({
   const { request, isLoading } = usePaymentRequest(id)
 
   if (isLoading) {
-    return <div className="p-3 text-sm text-gray-500">Загрузка...</div>
+    return <div className="p-3 text-sm text-gray-500">Loading...</div>
   }
 
   if (!request?.recipient || request.recipient === ZERO_ADDRESS) {
-    return <div className="p-3 text-sm text-red-500">Запрос не найден</div>
+    return <div className="p-3 text-sm text-red-500">Request not found</div>
   }
 
   const amount = request.amount ?? 0n
@@ -31,7 +31,7 @@ export default function WidgetPage({
     return (
       <div className="p-3 flex items-center gap-2 text-green-600 text-sm font-medium">
         <span>✓</span>
-        <span>Оплачено {amountDisplay}</span>
+        <span>Paid {amountDisplay}</span>
       </div>
     )
   }

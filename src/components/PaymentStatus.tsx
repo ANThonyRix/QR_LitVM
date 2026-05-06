@@ -9,14 +9,14 @@ interface Props {
 export function PaymentStatus({ paid, payer }: Props) {
   return paid ? (
     <div className="space-y-1">
-      <Badge className="bg-green-500 text-white">Оплачено</Badge>
+      <Badge className="bg-green-500 text-white">Paid</Badge>
       {payer && payer !== '0x0000000000000000000000000000000000000000' && (
         <p className="text-xs text-muted-foreground font-mono">
-          от {payer.slice(0, 6)}...{payer.slice(-4)}
+          from {payer.slice(0, 6)}...{payer.slice(-4)}
         </p>
       )}
     </div>
   ) : (
-    <Badge variant="outline">Ожидает оплаты</Badge>
+    <Badge variant="outline">Awaiting payment</Badge>
   )
 }
