@@ -14,6 +14,7 @@ export default defineConfig({
           litvm: {
             type: 'http' as const,
             url: process.env.LITVM_RPC_URL,
+            chainId: 4441,
             accounts: process.env.DEPLOYER_PRIVATE_KEY
               ? [process.env.DEPLOYER_PRIVATE_KEY]
               : ('remote' as const),

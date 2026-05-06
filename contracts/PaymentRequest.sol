@@ -2,6 +2,9 @@
 pragma solidity ^0.8.24;
 
 contract PaymentRequest {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
     struct Request {
         address payable recipient;
         uint256 amount;
@@ -14,6 +17,9 @@ contract PaymentRequest {
     mapping(bytes32 => Request) public requests;
     mapping(string  => address) public usernameToAddress;
     mapping(address => string)  public addressToUsername;
+    mapping(address => uint256) public pendingWithdrawals;
+
+    uint256 private _status = _NOT_ENTERED;
 
     event RequestCreated(
         bytes32 indexed id,
@@ -30,6 +36,22 @@ contract PaymentRequest {
         address indexed user,
         string username
     );
+    event ProceedsQueued(
+        address indexed recipient,
+        uint256 amount
+    );
+    event ProceedsWithdrawn(
+        address indexed recipient,
+        address indexed to,
+        uint256 amount
+    );
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "Reentrancy");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
 
     function createRequest(
         uint256 amount,
@@ -49,7 +71,7 @@ contract PaymentRequest {
         emit RequestCreated(id, msg.sender, amount, label);
     }
 
-    function pay(bytes32 id) external payable {
+    function pay(bytes32 id) external payable nonReentrant {
         Request storage req = requests[id];
         require(req.recipient != address(0), "Not found");
         require(!req.paid, "Already paid");
@@ -64,14 +86,19 @@ contract PaymentRequest {
         req.paidAt = block.timestamp;
 
         (bool ok,) = req.recipient.call{value: msg.value}("");
-        require(ok, "Transfer failed");
+        if (!ok) {
+            pendingWithdrawals[req.recipient] += msg.value;
+            emit ProceedsQueued(req.recipient, msg.value);
+        }
 
         emit RequestPaid(id, msg.sender, msg.value);
     }
 
     function registerUsername(string calldata username) external {
-        require(bytes(username).length >= 3,  "Min 3 chars");
-        require(bytes(username).length <= 32, "Max 32 chars");
+        bytes memory usernameBytes = bytes(username);
+        require(usernameBytes.length >= 3,  "Min 3 chars");
+        require(usernameBytes.length <= 32, "Max 32 chars");
+        _validateUsername(usernameBytes);
         require(usernameToAddress[username] == address(0), "Taken");
         require(bytes(addressToUsername[msg.sender]).length == 0, "Already registered");
 
@@ -79,5 +106,38 @@ contract PaymentRequest {
         addressToUsername[msg.sender] = username;
 
         emit UsernameRegistered(msg.sender, username);
+    }
+
+    function withdrawProceeds(address payable to) external nonReentrant {
+        require(to != address(0), "Zero address");
+
+        uint256 amount = pendingWithdrawals[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+
+        pendingWithdrawals[msg.sender] = 0;
+
+        (bool ok,) = to.call{value: amount}("");
+        require(ok, "Withdraw failed");
+
+        emit ProceedsWithdrawn(msg.sender, to, amount);
+    }
+
+    receive() external payable {
+        revert("Use pay");
+    }
+
+    fallback() external payable {
+        revert("Use pay");
+    }
+
+    function _validateUsername(bytes memory usernameBytes) internal pure {
+        for (uint256 i = 0; i < usernameBytes.length; i++) {
+            bytes1 char = usernameBytes[i];
+            bool isLowercase = char >= 0x61 && char <= 0x7A;
+            bool isDigit = char >= 0x30 && char <= 0x39;
+            bool isUnderscore = char == 0x5F;
+
+            require(isLowercase || isDigit || isUnderscore, "Invalid username");
+        }
     }
 }
