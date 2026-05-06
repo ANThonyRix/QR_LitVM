@@ -50,6 +50,13 @@ export function PaymentGenerator() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const resetGenerator = () => {
+    setAmount('')
+    setLabel('')
+    setPayUrl('')
+    setCopied(false)
+  }
+
   if (!isConnected) {
     return (
       <div style={glassCard} className="p-6 text-center">
@@ -143,6 +150,13 @@ export function PaymentGenerator() {
               {requestId && <EmbedCode requestId={requestId} />}
             </TabsContent>
           </Tabs>
+
+          <button
+            className="mt-4 w-full py-2.5 rounded-xl text-sm font-medium text-white/80 border border-white/15 bg-white/5 hover:bg-white/10 transition-all"
+            onClick={resetGenerator}
+          >
+            Create new link
+          </button>
         </div>
       )}
     </div>
