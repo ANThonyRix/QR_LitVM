@@ -15,6 +15,7 @@ const glassCard = {
 export function UsernameRegister() {
   const [input, setInput] = useState('')
   const [changing, setChanging] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { isConnected } = useAccount()
   const { myUsername, register, change, isPending, isConfirming, isSuccess, error, refetch } = useUsername()
 
@@ -26,6 +27,21 @@ export function UsernameRegister() {
     }
   }, [isSuccess])
 
+  const shortLink =
+    typeof window !== 'undefined' && myUsername
+      ? `${window.location.origin}/u/${myUsername}`
+      : ''
+
+  const copyShortLink = async () => {
+    if (!shortLink) {
+      return
+    }
+
+    await navigator.clipboard.writeText(shortLink)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1500)
+  }
+
   if (!isConnected) return null
 
   // Has username - show current + optional change form
@@ -34,10 +50,18 @@ export function UsernameRegister() {
       <div style={glassCard} className="p-4 space-y-2">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm text-white/50">Your short link:</span>
-          <code className="text-sm font-mono px-3 py-1 rounded-lg text-blue-300"
-            style={{ background: 'oklch(0.62 0.19 261 / 0.15)', border: '1px solid oklch(0.62 0.19 261 / 0.3)' }}>
-            {typeof window !== 'undefined' ? window.location.origin : ''}/u/{myUsername}
-          </code>
+          <button
+            type="button"
+            onClick={copyShortLink}
+            className="text-sm font-mono px-3 py-1 rounded-lg text-blue-300 transition-all hover:text-blue-200 active:scale-[0.98]"
+            style={{ background: 'oklch(0.62 0.19 261 / 0.15)', border: '1px solid oklch(0.62 0.19 261 / 0.3)' }}
+            title="Tap or click to copy"
+          >
+            {shortLink}
+          </button>
+          {copied && (
+            <span className="text-xs text-emerald-300">Copied</span>
+          )}
           <button
             onClick={() => { setChanging(true); setInput('') }}
             className="text-xs text-white/40 hover:text-white/70 transition-colors ml-auto underline underline-offset-2"
