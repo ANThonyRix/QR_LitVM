@@ -9,6 +9,8 @@ import {
   useOnchainHistory,
 } from '@/hooks/useOnchainHistory'
 
+type HistoryTabKey = 'created' | 'paid' | 'received'
+
 const glassCard = {
   background: 'oklch(0.13 0.03 264 / 0.8)',
   border: '1px solid oklch(1 0 0 / 8%)',
@@ -118,9 +120,62 @@ function HistoryList({
   )
 }
 
+function HistorySection({
+  sectionKey,
+  title,
+  entries,
+  emptyText,
+  counterpartyLabel,
+  expandedSections,
+  onToggle,
+}: {
+  sectionKey: HistoryTabKey
+  title: string
+  entries: OnchainHistoryEntry[]
+  emptyText: string
+  counterpartyLabel?: string
+  expandedSections: Record<HistoryTabKey, boolean>
+  onToggle: (sectionKey: HistoryTabKey) => void
+}) {
+  const isExpanded = expandedSections[sectionKey]
+
+  return (
+    <div className="pt-4 space-y-4">
+      <button
+        type="button"
+        onClick={() => onToggle(sectionKey)}
+        className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left transition-all hover:bg-white/8"
+      >
+        <div>
+          <p className="text-sm font-medium text-white">{title}</p>
+          <p className="mt-1 text-xs text-white/40">
+            {entries.length} {entries.length === 1 ? 'link' : 'links'}
+          </p>
+        </div>
+        <span className="text-sm text-white/60">
+          {isExpanded ? 'Hide links' : 'Show links'}
+        </span>
+      </button>
+
+      {isExpanded && (
+        <HistoryList
+          entries={entries}
+          emptyText={emptyText}
+          counterpartyLabel={counterpartyLabel}
+        />
+      )}
+    </div>
+  )
+}
+
 export function LinkHistory() {
   const { isConnected } = useAccount()
   const [refreshKey, setRefreshKey] = useState(0)
+  const [expandedSections, setExpandedSections] = useState<Record<HistoryTabKey, boolean>>({
+    created: false,
+    paid: false,
+    received: false,
+  })
   const {
     createdEntries,
     paidEntries,
@@ -149,6 +204,13 @@ export function LinkHistory() {
     }),
     [createdEntries.length, paidEntries.length, receivedEntries.length],
   )
+
+  const toggleSection = (sectionKey: HistoryTabKey) => {
+    setExpandedSections(current => ({
+      ...current,
+      [sectionKey]: !current[sectionKey],
+    }))
+  }
 
   return (
     <div style={glassCard} className="p-6 space-y-5">
@@ -190,26 +252,38 @@ export function LinkHistory() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="created" className="pt-4">
-              <HistoryList
+            <TabsContent value="created">
+              <HistorySection
+                sectionKey="created"
+                title="Created links"
                 entries={createdEntries}
                 emptyText="No payment links created from this wallet yet."
+                expandedSections={expandedSections}
+                onToggle={toggleSection}
               />
             </TabsContent>
 
-            <TabsContent value="paid" className="pt-4">
-              <HistoryList
+            <TabsContent value="paid">
+              <HistorySection
+                sectionKey="paid"
+                title="Paid links"
                 entries={paidEntries}
                 emptyText="No outgoing payments from this wallet yet."
                 counterpartyLabel="Recipient"
+                expandedSections={expandedSections}
+                onToggle={toggleSection}
               />
             </TabsContent>
 
-            <TabsContent value="received" className="pt-4">
-              <HistoryList
+            <TabsContent value="received">
+              <HistorySection
+                sectionKey="received"
+                title="Received links"
                 entries={receivedEntries}
                 emptyText="No incoming payments to this wallet yet."
                 counterpartyLabel="Payer"
+                expandedSections={expandedSections}
+                onToggle={toggleSection}
               />
             </TabsContent>
           </Tabs>
