@@ -1,5 +1,5 @@
 'use client'
-import { use } from 'react'
+import { use, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { WalletConnect } from '@/components/WalletConnect'
@@ -7,6 +7,7 @@ import { PayButton } from '@/components/PayButton'
 import { PaymentStatus } from '@/components/PaymentStatus'
 import { QRDisplay } from '@/components/QRDisplay'
 import { formatEther } from 'viem'
+import { upsertLinkHistory } from '@/lib/linkHistory'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -25,10 +26,26 @@ export default function PayPage({
   const { requestId } = use(params)
   const id = requestId as `0x${string}`
   const { request, isLoading } = usePaymentRequest(id)
+  const loggedHistoryId = useRef<`0x${string}` | null>(null)
 
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
   const bg = { background: 'oklch(0.09 0.025 264)' } as React.CSSProperties
+
+  useEffect(() => {
+    if (!request || request.recipient === ZERO_ADDRESS || loggedHistoryId.current === id) {
+      return
+    }
+
+    loggedHistoryId.current = id
+    upsertLinkHistory('received', {
+      id,
+      url: `${window.location.origin}/pay/${id}`,
+      label: request.label,
+      amount: request.amount > 0n ? formatEther(request.amount) : 'Any amount',
+      createdAt: Date.now(),
+    })
+  }, [id, request])
 
   if (isLoading) {
     return (

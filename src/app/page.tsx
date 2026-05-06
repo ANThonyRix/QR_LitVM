@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { WalletConnect } from '@/components/WalletConnect'
 import { PaymentGenerator } from '@/components/PaymentGenerator'
 import { UsernameRegister } from '@/components/UsernameRegister'
+import { LinkHistory } from '@/components/LinkHistory'
 
 export default function Home() {
   return (
@@ -45,6 +46,7 @@ export default function Home() {
         {/* Main content */}
         <PaymentGenerator />
         <UsernameRegister />
+        <LinkHistory />
 
         {/* Footer */}
         <footer className="text-center pb-4">

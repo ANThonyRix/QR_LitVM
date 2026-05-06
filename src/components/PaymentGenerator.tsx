@@ -7,6 +7,7 @@ import { EmbedCode } from './EmbedCode'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { upsertLinkHistory } from '@/lib/linkHistory'
 
 const glassCard = {
   background: 'oklch(0.13 0.03 264 / 0.8)',
@@ -28,9 +29,13 @@ export function PaymentGenerator() {
     if (requestId) {
       const url = `${window.location.origin}/pay/${requestId}`
       setPayUrl(url)
-      const history = JSON.parse(localStorage.getItem('qrlitvm_history') ?? '[]')
-      history.unshift({ id: requestId, url, label, amount, createdAt: Date.now() })
-      localStorage.setItem('qrlitvm_history', JSON.stringify(history.slice(0, 50)))
+      upsertLinkHistory('created', {
+        id: requestId,
+        url,
+        label,
+        amount: amount || 'Any amount',
+        createdAt: Date.now(),
+      })
     }
   }, [requestId])
 
