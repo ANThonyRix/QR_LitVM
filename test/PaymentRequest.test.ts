@@ -40,13 +40,18 @@ describe('PaymentRequest', function () {
       const amount = ethers.parseEther('1')
       const label = 'invoice #1'
 
-      await expect(contract.createRequest(amount, label))
+      const tx = await contract.createRequest(amount, label)
+      const receipt = await tx.wait()
+      const block = await ethers.provider.getBlock(receipt!.blockNumber)
+
+      await expect(tx)
         .to.emit(contract, 'RequestCreated')
         .withArgs(
           (id: string) => id !== ethers.ZeroHash,
           owner.address,
           amount,
           label,
+          block!.timestamp,
         )
     })
 
@@ -60,7 +65,19 @@ describe('PaymentRequest', function () {
           owner.address,
           0n,
           'open',
+          (createdAt: bigint | number) => Number(createdAt) > 0,
         )
+    })
+
+    it('stores createdAt and reports request existence', async function () {
+      const { contract } = await deploy()
+      const tx = await contract.createRequest(123n, 'timed request')
+      const requestId = await getRequestId(contract, tx)
+      const req = await contract.requests(requestId)
+
+      expect(req.createdAt).to.be.greaterThan(0n)
+      expect(await contract.requestExists(requestId)).to.equal(true)
+      expect(await contract.requestExists(ethers.ZeroHash)).to.equal(false)
     })
   })
 
@@ -76,18 +93,29 @@ describe('PaymentRequest', function () {
       const amount = ethers.parseEther('0.5')
       const { contract, owner, alice, requestId } = await createFixedRequest(amount)
       const before = await ethers.provider.getBalance(owner.address)
+      const requestBeforePayment = await contract.requests(requestId)
 
-      await expect(
-        contract.connect(alice).pay(requestId, { value: amount }),
-      )
+      const payTx = await contract.connect(alice).pay(requestId, { value: amount })
+      const receipt = await payTx.wait()
+      const block = await ethers.provider.getBlock(receipt!.blockNumber)
+
+      await expect(payTx)
         .to.emit(contract, 'RequestPaid')
-        .withArgs(requestId, alice.address, amount)
+        .withArgs(
+          requestId,
+          alice.address,
+          owner.address,
+          amount,
+          requestBeforePayment.label,
+          block!.timestamp,
+        )
 
       const after = await ethers.provider.getBalance(owner.address)
       const req = await contract.requests(requestId)
 
       expect(req.paid).to.equal(true)
       expect(req.payer).to.equal(alice.address)
+      expect(req.paidAt).to.equal(BigInt(block!.timestamp))
       expect(after - before).to.equal(amount)
       expect(await contract.pendingWithdrawals(owner.address)).to.equal(0n)
     })
@@ -100,12 +128,24 @@ describe('PaymentRequest', function () {
 
       const tx = await rejectingReceiver.createRequest(paymentRequestAddress, amount, 'contract recipient')
       const requestId = await getRequestId(contract, tx)
+      const requestBeforePayment = await contract.requests(requestId)
 
-      await expect(contract.connect(alice).pay(requestId, { value: amount }))
+      const payTx = await contract.connect(alice).pay(requestId, { value: amount })
+      const payReceipt = await payTx.wait()
+      const payBlock = await ethers.provider.getBlock(payReceipt!.blockNumber)
+
+      await expect(payTx)
         .to.emit(contract, 'ProceedsQueued')
         .withArgs(receiverAddress, amount)
         .and.to.emit(contract, 'RequestPaid')
-        .withArgs(requestId, alice.address, amount)
+        .withArgs(
+          requestId,
+          alice.address,
+          receiverAddress,
+          amount,
+          requestBeforePayment.label,
+          payBlock!.timestamp,
+        )
 
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
@@ -137,7 +177,14 @@ describe('PaymentRequest', function () {
 
       await expect(contract.connect(alice).pay(requestId, { value: amount }))
         .to.emit(contract, 'RequestPaid')
-        .withArgs(requestId, alice.address, amount)
+        .withArgs(
+          requestId,
+          alice.address,
+          receiverAddress,
+          amount,
+          'contract recipient',
+          (paidAt: bigint | number) => Number(paidAt) > 0,
+        )
 
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
@@ -176,7 +223,14 @@ describe('PaymentRequest', function () {
         contract.connect(alice).pay(requestId, { value: anyAmount }),
       )
         .to.emit(contract, 'RequestPaid')
-        .withArgs(requestId, alice.address, anyAmount)
+        .withArgs(
+          requestId,
+          alice.address,
+          owner.address,
+          anyAmount,
+          'open',
+          (paidAt: bigint | number) => Number(paidAt) > 0,
+        )
 
       expect(await contract.pendingWithdrawals(owner.address)).to.equal(0n)
     })

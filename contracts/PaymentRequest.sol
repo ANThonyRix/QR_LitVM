@@ -9,6 +9,7 @@ contract PaymentRequest {
         address payable recipient;
         uint256 amount;
         string  label;
+        uint256 createdAt;
         bool    paid;
         address payer;
         uint256 paidAt;
@@ -25,12 +26,16 @@ contract PaymentRequest {
         bytes32 indexed id,
         address indexed recipient,
         uint256 amount,
-        string  label
+        string  label,
+        uint256 createdAt
     );
     event RequestPaid(
         bytes32 indexed id,
         address indexed payer,
-        uint256 amount
+        address indexed recipient,
+        uint256 amount,
+        string  label,
+        uint256 paidAt
     );
     event UsernameRegistered(
         address indexed user,
@@ -62,18 +67,20 @@ contract PaymentRequest {
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
+        uint256 createdAt = block.timestamp;
         id = keccak256(
-            abi.encodePacked(msg.sender, amount, label, block.timestamp, block.prevrandao)
+            abi.encodePacked(msg.sender, amount, label, createdAt, block.prevrandao)
         );
         requests[id] = Request({
             recipient: payable(msg.sender),
             amount:    amount,
             label:     label,
+            createdAt: createdAt,
             paid:      false,
             payer:     address(0),
             paidAt:    0
         });
-        emit RequestCreated(id, msg.sender, amount, label);
+        emit RequestCreated(id, msg.sender, amount, label, createdAt);
     }
 
     function pay(bytes32 id) external payable nonReentrant {
@@ -96,7 +103,7 @@ contract PaymentRequest {
             emit ProceedsQueued(req.recipient, msg.value);
         }
 
-        emit RequestPaid(id, msg.sender, msg.value);
+        emit RequestPaid(id, msg.sender, req.recipient, msg.value, req.label, req.paidAt);
     }
 
     function registerUsername(string calldata username) external {
@@ -152,6 +159,10 @@ contract PaymentRequest {
 
     fallback() external payable {
         revert("Use pay");
+    }
+
+    function requestExists(bytes32 id) external view returns (bool) {
+        return requests[id].recipient != address(0);
     }
 
     function _validateUsername(bytes memory usernameBytes) internal pure {

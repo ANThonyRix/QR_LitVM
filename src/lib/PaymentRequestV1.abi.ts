@@ -1,9 +1,9 @@
-export const PAYMENT_REQUEST_ABI = [
+export const PAYMENT_REQUEST_V1_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true,  internalType: 'address', name: 'recipient', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount',    type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'recipient', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
     ],
     name: 'ProceedsQueued',
     type: 'event',
@@ -11,9 +11,9 @@ export const PAYMENT_REQUEST_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true,  internalType: 'address', name: 'recipient', type: 'address' },
-      { indexed: true,  internalType: 'address', name: 'to',        type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount',    type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'recipient', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'to', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
     ],
     name: 'ProceedsWithdrawn',
     type: 'event',
@@ -21,11 +21,10 @@ export const PAYMENT_REQUEST_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true,  internalType: 'bytes32', name: 'id',        type: 'bytes32' },
-      { indexed: true,  internalType: 'address', name: 'recipient', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount',    type: 'uint256' },
-      { indexed: false, internalType: 'string',  name: 'label',     type: 'string'  },
-      { indexed: false, internalType: 'uint256', name: 'createdAt', type: 'uint256' },
+      { indexed: true, internalType: 'bytes32', name: 'id', type: 'bytes32' },
+      { indexed: true, internalType: 'address', name: 'recipient', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'string', name: 'label', type: 'string' },
     ],
     name: 'RequestCreated',
     type: 'event',
@@ -33,12 +32,9 @@ export const PAYMENT_REQUEST_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true,  internalType: 'bytes32', name: 'id',        type: 'bytes32' },
-      { indexed: true,  internalType: 'address', name: 'payer',     type: 'address' },
-      { indexed: true,  internalType: 'address', name: 'recipient', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount',    type: 'uint256' },
-      { indexed: false, internalType: 'string',  name: 'label',     type: 'string'  },
-      { indexed: false, internalType: 'uint256', name: 'paidAt',    type: 'uint256' },
+      { indexed: true, internalType: 'bytes32', name: 'id', type: 'bytes32' },
+      { indexed: true, internalType: 'address', name: 'payer', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
     ],
     name: 'RequestPaid',
     type: 'event',
@@ -46,8 +42,8 @@ export const PAYMENT_REQUEST_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true,  internalType: 'address', name: 'user',     type: 'address' },
-      { indexed: false, internalType: 'string',  name: 'username', type: 'string'  },
+      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+      { indexed: false, internalType: 'string', name: 'username', type: 'string' },
     ],
     name: 'UsernameRegistered',
     type: 'event',
@@ -55,9 +51,9 @@ export const PAYMENT_REQUEST_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true,  internalType: 'address', name: 'user',        type: 'address' },
-      { indexed: false, internalType: 'string',  name: 'oldUsername', type: 'string'  },
-      { indexed: false, internalType: 'string',  name: 'newUsername', type: 'string'  },
+      { indexed: true, internalType: 'address', name: 'user', type: 'address' },
+      { indexed: false, internalType: 'string', name: 'oldUsername', type: 'string' },
+      { indexed: false, internalType: 'string', name: 'newUsername', type: 'string' },
     ],
     name: 'UsernameChanged',
     type: 'event',
@@ -73,7 +69,7 @@ export const PAYMENT_REQUEST_ABI = [
   {
     inputs: [
       { internalType: 'uint256', name: 'amount', type: 'uint256' },
-      { internalType: 'string',  name: 'label',  type: 'string'  },
+      { internalType: 'string', name: 'label', type: 'string' },
     ],
     name: 'createRequest',
     outputs: [{ internalType: 'bytes32', name: 'id', type: 'bytes32' }],
@@ -102,23 +98,15 @@ export const PAYMENT_REQUEST_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'bytes32', name: 'id', type: 'bytes32' }],
-    name: 'requestExists',
-    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
     inputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
     name: 'requests',
     outputs: [
       { internalType: 'address payable', name: 'recipient', type: 'address' },
-      { internalType: 'uint256',         name: 'amount',    type: 'uint256' },
-      { internalType: 'string',          name: 'label',     type: 'string'  },
-      { internalType: 'uint256',         name: 'createdAt', type: 'uint256' },
-      { internalType: 'bool',            name: 'paid',      type: 'bool'    },
-      { internalType: 'address',         name: 'payer',     type: 'address' },
-      { internalType: 'uint256',         name: 'paidAt',    type: 'uint256' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { internalType: 'string', name: 'label', type: 'string' },
+      { internalType: 'bool', name: 'paid', type: 'bool' },
+      { internalType: 'address', name: 'payer', type: 'address' },
+      { internalType: 'uint256', name: 'paidAt', type: 'uint256' },
     ],
     stateMutability: 'view',
     type: 'function',

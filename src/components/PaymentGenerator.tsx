@@ -7,7 +7,7 @@ import { EmbedCode } from './EmbedCode'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { upsertLinkHistory } from '@/lib/linkHistory'
+import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
 
 const glassCard = {
   background: 'oklch(0.13 0.03 264 / 0.8)',
@@ -29,13 +29,7 @@ export function PaymentGenerator() {
     if (requestId) {
       const url = `${window.location.origin}/pay/${requestId}`
       setPayUrl(url)
-      upsertLinkHistory('created', {
-        id: requestId,
-        url,
-        label,
-        amount: amount || 'Any amount',
-        createdAt: Date.now(),
-      })
+      window.dispatchEvent(new Event(ONCHAIN_HISTORY_REFRESH_EVENT))
     }
   }, [requestId])
 

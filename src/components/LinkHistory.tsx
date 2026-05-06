@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  clearLinkHistory,
-  HISTORY_UPDATED_EVENT,
-  type LinkHistoryEntry,
-  type LinkHistoryKind,
-  readLinkHistory,
-} from '@/lib/linkHistory'
+import { useAccount } from 'wagmi'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  ONCHAIN_HISTORY_REFRESH_EVENT,
+  type OnchainHistoryEntry,
+  useOnchainHistory,
+} from '@/hooks/useOnchainHistory'
 
 const glassCard = {
   background: 'oklch(0.13 0.03 264 / 0.8)',
@@ -17,51 +16,50 @@ const glassCard = {
   borderRadius: '16px',
 } as React.CSSProperties
 
+const actionButtonStyle = {
+  background: 'oklch(1 0 0 / 4%)',
+  border: '1px solid oklch(1 0 0 / 8%)',
+} as React.CSSProperties
+
 const copyButtonStyle = {
   background: 'oklch(1 0 0 / 4%)',
   border: '1px solid oklch(1 0 0 / 8%)',
 } as React.CSSProperties
 
-const labels: Record<LinkHistoryKind, { title: string; empty: string; hint: string }> = {
-  created: {
-    title: 'Created links',
-    empty: 'Your generated payment links will appear here.',
-    hint: 'Saved on this device after successful creation.',
-  },
-  received: {
-    title: 'Received links',
-    empty: 'Links you open to pay will appear here.',
-    hint: 'Saved locally when you open a payment page.',
-  },
-}
-
 function formatTimestamp(timestamp: number) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(timestamp)
+  }).format(timestamp * 1000)
+}
+
+function shortenAddress(address: `0x${string}`) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
 function HistoryList({
-  kind,
   entries,
+  emptyText,
+  counterpartyLabel,
 }: {
-  kind: LinkHistoryKind
-  entries: LinkHistoryEntry[]
+  entries: OnchainHistoryEntry[]
+  emptyText: string
+  counterpartyLabel?: string
 }) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const copyLink = async (url: string, id: string) => {
     await navigator.clipboard.writeText(url)
     setCopiedId(id)
-    window.setTimeout(() => setCopiedId(current => (current === id ? null : current)), 1500)
+    window.setTimeout(() => {
+      setCopiedId(current => (current === id ? null : current))
+    }, 1500)
   }
 
   if (entries.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center">
-        <p className="text-sm text-white/65">{labels[kind].empty}</p>
-        <p className="mt-2 text-xs text-white/35">{labels[kind].hint}</p>
+        <p className="text-sm text-white/65">{emptyText}</p>
       </div>
     )
   }
@@ -70,21 +68,25 @@ function HistoryList({
     <div className="space-y-3">
       {entries.map(entry => (
         <div
-          key={`${kind}-${entry.id}`}
+          key={entry.id}
           className="rounded-2xl border border-white/8 p-4"
           style={{ background: 'oklch(1 0 0 / 3%)' }}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{entry.label}</p>
-              <p className="mt-1 text-xs text-white/45">
-                {entry.amount || 'Any amount'} zkLTC
-              </p>
+              <p className="mt-1 text-xs text-white/45">{entry.amountDisplay} zkLTC</p>
             </div>
             <span className="shrink-0 rounded-full border border-white/8 px-2 py-1 text-[11px] text-white/45">
-              {kind === 'created' ? 'Created' : 'Opened'}
+              {formatTimestamp(entry.timestamp)}
             </span>
           </div>
+
+          {entry.counterparty && counterpartyLabel && (
+            <p className="mt-3 text-xs text-white/45">
+              {counterpartyLabel}: <span className="font-mono text-white/65">{shortenAddress(entry.counterparty)}</span>
+            </p>
+          )}
 
           <a
             href={entry.url}
@@ -94,26 +96,21 @@ function HistoryList({
             {entry.url}
           </a>
 
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-[11px] text-white/35">
-              {formatTimestamp(entry.updatedAt)}
-            </p>
-            <div className="flex items-center gap-2">
-              <a
-                href={entry.url}
-                className="rounded-xl px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
-                style={copyButtonStyle}
-              >
-                Open
-              </a>
-              <button
-                className="rounded-xl px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
-                style={copyButtonStyle}
-                onClick={() => copyLink(entry.url, entry.id)}
-              >
-                {copiedId === entry.id ? 'Copied' : 'Copy'}
-              </button>
-            </div>
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <a
+              href={entry.url}
+              className="rounded-xl px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
+              style={actionButtonStyle}
+            >
+              Open
+            </a>
+            <button
+              className="rounded-xl px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
+              style={copyButtonStyle}
+              onClick={() => copyLink(entry.url, entry.id)}
+            >
+              {copiedId === entry.id ? 'Copied' : 'Copy'}
+            </button>
           </div>
         </div>
       ))}
@@ -122,93 +119,102 @@ function HistoryList({
 }
 
 export function LinkHistory() {
-  const [createdEntries, setCreatedEntries] = useState<LinkHistoryEntry[]>([])
-  const [receivedEntries, setReceivedEntries] = useState<LinkHistoryEntry[]>([])
-
-  const reload = () => {
-    setCreatedEntries(readLinkHistory('created'))
-    setReceivedEntries(readLinkHistory('received'))
-  }
+  const { isConnected } = useAccount()
+  const [refreshKey, setRefreshKey] = useState(0)
+  const {
+    createdEntries,
+    paidEntries,
+    receivedEntries,
+    isLoading,
+    error,
+  } = useOnchainHistory(refreshKey)
 
   useEffect(() => {
-    reload()
-
-    const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key.startsWith('qrlitvm_')) {
-        reload()
-      }
+    const handleRefresh = () => {
+      setRefreshKey(current => current + 1)
     }
 
-    const handleHistoryUpdate = () => {
-      reload()
-    }
-
-    window.addEventListener('storage', handleStorage)
-    window.addEventListener(HISTORY_UPDATED_EVENT, handleHistoryUpdate)
+    window.addEventListener(ONCHAIN_HISTORY_REFRESH_EVENT, handleRefresh)
 
     return () => {
-      window.removeEventListener('storage', handleStorage)
-      window.removeEventListener(HISTORY_UPDATED_EVENT, handleHistoryUpdate)
+      window.removeEventListener(ONCHAIN_HISTORY_REFRESH_EVENT, handleRefresh)
     }
   }, [])
 
   const counters = useMemo(
     () => ({
       created: createdEntries.length,
+      paid: paidEntries.length,
       received: receivedEntries.length,
     }),
-    [createdEntries.length, receivedEntries.length],
+    [createdEntries.length, paidEntries.length, receivedEntries.length],
   )
 
   return (
     <div style={glassCard} className="p-6 space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-white/40">History</p>
-          <h2 className="mt-1 text-lg font-semibold text-white">Created and received links</h2>
-        </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-white/40">On-chain history</p>
+        <h2 className="mt-1 text-lg font-semibold text-white">Your wallet activity</h2>
       </div>
 
-      <Tabs defaultValue="created">
-        <TabsList className="w-full bg-white/5 border border-white/10">
-          <TabsTrigger value="created" className="flex-1 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
-            Created ({counters.created})
-          </TabsTrigger>
-          <TabsTrigger value="received" className="flex-1 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
-            Received ({counters.received})
-          </TabsTrigger>
-        </TabsList>
+      {!isConnected && (
+        <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center">
+          <p className="text-sm text-white/65">Connect your wallet to load on-chain history.</p>
+        </div>
+      )}
 
-        <TabsContent value="created" className="space-y-4 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-white/40">{labels.created.hint}</p>
-            {createdEntries.length > 0 && (
-              <button
-                className="text-xs text-white/45 underline underline-offset-4 transition-colors hover:text-white/70"
-                onClick={() => clearLinkHistory('created')}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <HistoryList kind="created" entries={createdEntries} />
-        </TabsContent>
+      {isConnected && (
+        <>
+          {isLoading && (
+            <div className="rounded-2xl border border-white/8 px-4 py-6 text-center text-sm text-white/55">
+              Loading on-chain history...
+            </div>
+          )}
 
-        <TabsContent value="received" className="space-y-4 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-white/40">{labels.received.hint}</p>
-            {receivedEntries.length > 0 && (
-              <button
-                className="text-xs text-white/45 underline underline-offset-4 transition-colors hover:text-white/70"
-                onClick={() => clearLinkHistory('received')}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <HistoryList kind="received" entries={receivedEntries} />
-        </TabsContent>
-      </Tabs>
+          {error && (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <Tabs defaultValue="created">
+            <TabsList className="w-full bg-white/5 border border-white/10">
+              <TabsTrigger value="created" className="flex-1 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+                Created ({counters.created})
+              </TabsTrigger>
+              <TabsTrigger value="paid" className="flex-1 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+                Paid ({counters.paid})
+              </TabsTrigger>
+              <TabsTrigger value="received" className="flex-1 data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60">
+                Received ({counters.received})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="created" className="pt-4">
+              <HistoryList
+                entries={createdEntries}
+                emptyText="No payment links created from this wallet yet."
+              />
+            </TabsContent>
+
+            <TabsContent value="paid" className="pt-4">
+              <HistoryList
+                entries={paidEntries}
+                emptyText="No outgoing payments from this wallet yet."
+                counterpartyLabel="Recipient"
+              />
+            </TabsContent>
+
+            <TabsContent value="received" className="pt-4">
+              <HistoryList
+                entries={receivedEntries}
+                emptyText="No incoming payments to this wallet yet."
+                counterpartyLabel="Payer"
+              />
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
   )
 }
