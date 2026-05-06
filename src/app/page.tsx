@@ -1,5 +1,6 @@
 import { WalletConnect } from '@/components/WalletConnect'
 import { PaymentGenerator } from '@/components/PaymentGenerator'
+import { UsernameRegister } from '@/components/UsernameRegister'
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
           <WalletConnect />
         </header>
         <PaymentGenerator />
+        <UsernameRegister />
       </div>
     </main>
   )
