@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
-
-const CONTRACT_ADDRESS = '0xb655Cf15C7faB15FF5021374d5030910daFe30d3'
+import { CONTRACT_ADDRESS } from '@/lib/contract'
 
 export function FAQButton() {
   const [open, setOpen] = useState(false)
