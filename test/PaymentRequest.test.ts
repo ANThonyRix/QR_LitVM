@@ -281,44 +281,65 @@ describe('PaymentRequest', function () {
       const amount = ethers.parseEther('0.08')
       const paymentRequestAddress = await contract.getAddress()
 
-      const tx = await rejectingReceiver.createRequestWithPayout(
-        paymentRequestAddress, amount, 'queued', bob.address,
+      const tx = await rejectingReceiver.createRequest(
+        paymentRequestAddress, amount, 'queued',
       )
       const requestId = await getRequestId(contract, tx)
+      const receiverAddress = await rejectingReceiver.getAddress()
 
       await contract.connect(alice).pay(requestId, { value: amount })
-      expect(await contract.pendingWithdrawals(bob.address)).to.equal(amount)
+      expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
       await expect(
-        contract.connect(alice).rescueStuckProceeds(bob.address),
+        contract.connect(alice).rescueStuckProceeds(receiverAddress, bob.address),
       ).to.be.revertedWith('Too early')
     })
 
-    it('rescueStuckProceeds releases funds to the payout address after the timeout', async function () {
+    it('rescueStuckProceeds releases funds from a non-interactive payout address to an alternate recipient after the timeout', async function () {
       const { contract, rejectingReceiver, alice, bob } = await deploy()
       const amount = ethers.parseEther('0.08')
       const paymentRequestAddress = await contract.getAddress()
+      const receiverAddress = await rejectingReceiver.getAddress()
 
-      // rejectingReceiver creates request with bob as payout (so failed push queues to bob)
-      const tx = await rejectingReceiver.createRequestWithPayout(
-        paymentRequestAddress, amount, 'queued', bob.address,
+      const tx = await rejectingReceiver.createRequest(
+        paymentRequestAddress, amount, 'queued',
       )
       const requestId = await getRequestId(contract, tx)
       await contract.connect(alice).pay(requestId, { value: amount })
-      expect(await contract.pendingWithdrawals(bob.address)).to.equal(amount)
+      expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
       await ethers.provider.send('evm_increaseTime', [30 * 24 * 60 * 60 + 1])
       await ethers.provider.send('evm_mine', [])
 
       const before = await ethers.provider.getBalance(bob.address)
-      await expect(contract.connect(alice).rescueStuckProceeds(bob.address))
+      await expect(contract.connect(alice).rescueStuckProceeds(receiverAddress, bob.address))
         .to.emit(contract, 'ProceedsWithdrawn')
-        .withArgs(bob.address, bob.address, amount)
+        .withArgs(receiverAddress, bob.address, amount)
 
       const after = await ethers.provider.getBalance(bob.address)
       expect(after - before).to.equal(amount)
-      expect(await contract.pendingWithdrawals(bob.address)).to.equal(0n)
-      expect(await contract.pendingWithdrawalsQueuedAt(bob.address)).to.equal(0n)
+      expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(0n)
+      expect(await contract.pendingWithdrawalsQueuedAt(receiverAddress)).to.equal(0n)
+    })
+
+    it('rescueStuckProceeds reverts when the alternate recipient is zero', async function () {
+      const { contract, rejectingReceiver, alice } = await deploy()
+      const amount = ethers.parseEther('0.08')
+      const paymentRequestAddress = await contract.getAddress()
+      const receiverAddress = await rejectingReceiver.getAddress()
+
+      const tx = await rejectingReceiver.createRequest(
+        paymentRequestAddress, amount, 'queued',
+      )
+      const requestId = await getRequestId(contract, tx)
+      await contract.connect(alice).pay(requestId, { value: amount })
+
+      await ethers.provider.send('evm_increaseTime', [30 * 24 * 60 * 60 + 1])
+      await ethers.provider.send('evm_mine', [])
+
+      await expect(
+        contract.connect(alice).rescueStuckProceeds(receiverAddress, ethers.ZeroAddress),
+      ).to.be.revertedWith('Zero address')
     })
 
     it('lets an EOA recipient withdraw only when some proceeds were queued', async function () {

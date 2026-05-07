@@ -272,15 +272,18 @@ contract PaymentRequest {
         _withdrawQueuedProceeds(msg.sender, to);
     }
 
-    // Rescue proceeds stuck in a contract wallet that cannot call withdrawProceeds itself.
-    // Only callable after RESCUE_TIMEOUT (30 days) to prevent front-running griefing.
-    function rescueStuckProceeds(address payable payoutAddress) external nonReentrant {
+    // Rescue proceeds stuck in a payout address that cannot withdraw or accept direct calls.
+    // Only callable after RESCUE_TIMEOUT (30 days) to give the configured payout address time to act first.
+    function rescueStuckProceeds(
+        address payoutAddress,
+        address payable to
+    ) external nonReentrant {
         require(pendingWithdrawalsQueuedAt[payoutAddress] > 0, "Nothing queued");
         require(
             block.timestamp >= pendingWithdrawalsQueuedAt[payoutAddress] + RESCUE_TIMEOUT,
             "Too early"
         );
-        _withdrawQueuedProceeds(payoutAddress, payoutAddress);
+        _withdrawQueuedProceeds(payoutAddress, to);
     }
 
     receive() external payable {

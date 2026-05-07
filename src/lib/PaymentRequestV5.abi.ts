@@ -92,4 +92,21 @@ export const PAYMENT_REQUEST_V5_ABI = [
     stateMutability: 'nonpayable',
     type: 'function',
   },
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'pendingWithdrawalsQueuedAt',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'payoutAddress', type: 'address' },
+      { internalType: 'address payable', name: 'to', type: 'address' },
+    ],
+    name: 'rescueStuckProceeds',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
 ] as const
