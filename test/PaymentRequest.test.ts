@@ -168,6 +168,17 @@ describe('PaymentRequest', function () {
       expect(await contract.requestPayoutAddresses(requestId)).to.equal(alice.address)
     })
 
+    it('configures a dedicated rescue address when using the explicit rescue flow', async function () {
+      const { contract, alice } = await deploy()
+
+      const tx = await contract
+        .connect(alice)
+        .createRequestWithPayoutAndRescue(1n, 'with rescue', alice.address, alice.address)
+      const requestId = await getRequestId(contract, tx)
+
+      expect(await contract.requestRescueAddresses(requestId)).to.equal(alice.address)
+    })
+
     it('reverts when a third party tries to set a custom payout for someone else', async function () {
       const { contract, alice, bob } = await deploy()
 
@@ -267,7 +278,7 @@ describe('PaymentRequest', function () {
 
       const before = await ethers.provider.getBalance(bob.address)
 
-      await expect(rejectingReceiver.withdrawTo(paymentRequestAddress, bob.address))
+      await expect(rejectingReceiver.withdrawTo(paymentRequestAddress, requestId, bob.address))
         .to.emit(contract, 'ProceedsWithdrawn')
         .withArgs(receiverAddress, bob.address, amount)
 
@@ -281,8 +292,8 @@ describe('PaymentRequest', function () {
       const amount = ethers.parseEther('0.08')
       const paymentRequestAddress = await contract.getAddress()
 
-      const tx = await rejectingReceiver.createRequest(
-        paymentRequestAddress, amount, 'queued',
+      const tx = await rejectingReceiver.createRequestWithPayoutAndRescue(
+        paymentRequestAddress, amount, 'queued', await rejectingReceiver.getAddress(), bob.address,
       )
       const requestId = await getRequestId(contract, tx)
       const receiverAddress = await rejectingReceiver.getAddress()
@@ -290,19 +301,17 @@ describe('PaymentRequest', function () {
       await contract.connect(alice).pay(requestId, { value: amount })
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
-      await expect(
-        contract.connect(alice).rescueStuckProceeds(receiverAddress, bob.address),
-      ).to.be.revertedWith('Too early')
+      await expect(contract.connect(alice).rescueStuckProceeds(requestId)).to.be.revertedWith('Too early')
     })
 
-    it('rescueStuckProceeds releases funds from a non-interactive payout address to an alternate recipient after the timeout', async function () {
+    it('rescueStuckProceeds releases funds from a non-interactive payout address to its configured rescue address after the timeout', async function () {
       const { contract, rejectingReceiver, alice, bob } = await deploy()
       const amount = ethers.parseEther('0.08')
       const paymentRequestAddress = await contract.getAddress()
       const receiverAddress = await rejectingReceiver.getAddress()
 
-      const tx = await rejectingReceiver.createRequest(
-        paymentRequestAddress, amount, 'queued',
+      const tx = await rejectingReceiver.createRequestWithPayoutAndRescue(
+        paymentRequestAddress, amount, 'queued', receiverAddress, bob.address,
       )
       const requestId = await getRequestId(contract, tx)
       await contract.connect(alice).pay(requestId, { value: amount })
@@ -312,17 +321,17 @@ describe('PaymentRequest', function () {
       await ethers.provider.send('evm_mine', [])
 
       const before = await ethers.provider.getBalance(bob.address)
-      await expect(contract.connect(alice).rescueStuckProceeds(receiverAddress, bob.address))
+      await expect(contract.connect(alice).rescueStuckProceeds(requestId))
         .to.emit(contract, 'ProceedsWithdrawn')
         .withArgs(receiverAddress, bob.address, amount)
 
       const after = await ethers.provider.getBalance(bob.address)
       expect(after - before).to.equal(amount)
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(0n)
-      expect(await contract.pendingWithdrawalsQueuedAt(receiverAddress)).to.equal(0n)
+      expect(await contract.queuedRequestQueuedAt(requestId)).to.equal(0n)
     })
 
-    it('rescueStuckProceeds reverts when the alternate recipient is zero', async function () {
+    it('withdrawQueuedRequest reverts when the alternate recipient is zero', async function () {
       const { contract, rejectingReceiver, alice } = await deploy()
       const amount = ethers.parseEther('0.08')
       const paymentRequestAddress = await contract.getAddress()
@@ -334,18 +343,17 @@ describe('PaymentRequest', function () {
       const requestId = await getRequestId(contract, tx)
       await contract.connect(alice).pay(requestId, { value: amount })
 
-      await ethers.provider.send('evm_increaseTime', [30 * 24 * 60 * 60 + 1])
-      await ethers.provider.send('evm_mine', [])
-
       await expect(
-        contract.connect(alice).rescueStuckProceeds(receiverAddress, ethers.ZeroAddress),
+        rejectingReceiver.withdrawTo(paymentRequestAddress, requestId, ethers.ZeroAddress),
       ).to.be.revertedWith('Zero address')
     })
 
-    it('lets an EOA recipient withdraw only when some proceeds were queued', async function () {
+    it('lets a payout address withdraw only when some proceeds were queued', async function () {
       const { contract, owner, bob } = await deploy()
+      const tx = await contract.createRequest(1n, 'test')
+      const requestId = await getRequestId(contract, tx)
 
-      await expect(contract.connect(owner).withdrawProceeds(bob.address))
+      await expect(contract.connect(owner).withdrawQueuedRequest(requestId, bob.address))
         .to.be.revertedWith('Nothing to withdraw')
     })
 
@@ -374,7 +382,7 @@ describe('PaymentRequest', function () {
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
       await expect(
-        rejectingReceiver.withdrawTo(paymentRequestAddress, ethers.ZeroAddress),
+        rejectingReceiver.withdrawTo(paymentRequestAddress, requestId, ethers.ZeroAddress),
       ).to.be.revertedWith('Zero address')
     })
 
