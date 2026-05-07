@@ -118,7 +118,7 @@ contract PaymentRequest {
         address creator = msg.sender;
         uint256 createdAt = block.timestamp;
         id = keccak256(
-            abi.encodePacked(creator, recipient, amount, label, createdAt, reusable, _nonces[creator]++)
+            abi.encode(creator, recipient, amount, label, createdAt, reusable, _nonces[creator]++)
         );
         requests[id] = Request({
             creator: creator,

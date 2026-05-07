@@ -100,6 +100,62 @@ describe('PaymentRequest', function () {
       expect(await contract.requestExists(requestId)).to.equal(true)
       expect(await contract.requestExists(ethers.ZeroHash)).to.equal(false)
     })
+
+    it('creates a request for a different recipient and stores both creator and recipient', async function () {
+      const { contract, alice, bob } = await deploy()
+      const amount = ethers.parseEther('0.05')
+      const label = 'gift for bob'
+
+      const tx = await contract.connect(alice).createRequestFor(bob.address, amount, label)
+      const requestId = await getRequestId(contract, tx)
+      const req = await contract.requests(requestId)
+
+      expect(req.creator).to.equal(alice.address)
+      expect(req.recipient).to.equal(bob.address)
+      expect(req.amount).to.equal(amount)
+      expect(req.label).to.equal(label)
+      expect(req.reusable).to.equal(false)
+    })
+
+    it('creates reusable requests for a different recipient', async function () {
+      const { contract, alice, bob } = await deploy()
+
+      const tx = await contract
+        .connect(alice)
+        .createReusableRequestFor(bob.address, 0n, 'tips for bob')
+      const requestId = await getRequestId(contract, tx)
+      const req = await contract.requests(requestId)
+
+      expect(req.creator).to.equal(alice.address)
+      expect(req.recipient).to.equal(bob.address)
+      expect(req.reusable).to.equal(true)
+      expect(req.amount).to.equal(0n)
+    })
+
+    it('reverts when creating a request for the zero address', async function () {
+      const { contract, alice } = await deploy()
+
+      await expect(
+        contract.connect(alice).createRequestFor(ethers.ZeroAddress, 1n, 'broken'),
+      ).to.be.revertedWith('Zero recipient')
+    })
+
+    it('reverts when label is empty', async function () {
+      const { contract, alice, bob } = await deploy()
+
+      await expect(
+        contract.connect(alice).createRequestFor(bob.address, 1n, ''),
+      ).to.be.revertedWith('Empty label')
+    })
+
+    it('reverts when label exceeds the maximum length', async function () {
+      const { contract, alice, bob } = await deploy()
+      const label = 'a'.repeat(257)
+
+      await expect(
+        contract.connect(alice).createRequestFor(bob.address, 1n, label),
+      ).to.be.revertedWith('Label too long')
+    })
   })
 
   describe('pay', function () {
