@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useAddressForUsername } from '@/hooks/useUsername'
@@ -23,6 +23,7 @@ export default function UserProfilePage({
 }) {
   const { username } = use(params)
   const { address, isLoading } = useAddressForUsername(username)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const bg = { background: 'oklch(0.09 0.025 264)' } as React.CSSProperties
 
@@ -93,10 +94,51 @@ export default function UserProfilePage({
           <p className="text-sm text-white/55">
             Create a payment link for this wallet directly from the username page.
           </p>
-        </div>
 
-        <PaymentGenerator recipientAddress={address} recipientUsername={username} />
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex w-full items-center justify-center rounded-xl py-2.5 text-sm font-medium text-white transition-all hover:scale-[1.02]"
+            style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+          >
+            Create payment link
+          </button>
+        </div>
       </div>
+
+      {isCreateModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:items-center"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setIsCreateModalOpen(false)
+            }
+          }}
+        >
+          <div className="w-full max-w-xl space-y-4">
+            <div
+              style={glassCard}
+              className="flex items-center justify-between px-5 py-4"
+            >
+              <div>
+                <p className="text-sm font-semibold text-white">Create payment link</p>
+                <p className="mt-1 text-xs text-white/45">
+                  The recipient wallet is already filled in for @{username}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <PaymentGenerator recipientAddress={address} recipientUsername={username} />
+          </div>
+        </div>
+      )}
     </main>
   )
 }
