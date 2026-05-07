@@ -5,9 +5,11 @@ import { useAccount } from 'wagmi'
 import { CONTRACT_VERSION } from '@/lib/contract'
 import { useCreateRequest } from '@/hooks/useCreateRequest'
 import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
+import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { WalletRpcRecoveryNotice } from './WalletRpcRecoveryNotice'
 import { EmbedCode } from './EmbedCode'
 import { QRDisplay } from './QRDisplay'
 
@@ -165,7 +167,9 @@ export function PaymentGenerator() {
                 : 'Create link'}
         </button>
 
-        {error && (
+        <WalletRpcRecoveryNotice error={error} />
+
+        {error && !isBandwidthLimitError(error) && (
           <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
             {(error as Error).message}
           </p>

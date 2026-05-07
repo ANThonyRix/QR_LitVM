@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react'
 import { useUsername } from '@/hooks/useUsername'
 import { useAccount } from 'wagmi'
+import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { WalletRpcRecoveryNotice } from './WalletRpcRecoveryNotice'
 
 const glassCard = {
   background: 'oklch(0.13 0.03 264 / 0.8)',
@@ -124,7 +126,9 @@ export function UsernameRegister() {
          isChange ? '🔄 Change username' : '🔖 Register username'}
       </button>
 
-      {error && (
+      <WalletRpcRecoveryNotice error={error} />
+
+      {error && !isBandwidthLimitError(error) && (
         <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">
           {(error as Error).message}
         </p>

@@ -2,8 +2,10 @@
 import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { usePay } from '@/hooks/usePay'
+import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { WalletRpcRecoveryNotice } from '@/components/WalletRpcRecoveryNotice'
 import { formatEther } from 'viem'
 
 interface Props {
@@ -61,7 +63,10 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props)
          isConfirming ? 'Processing...' :
          `Pay ${amount} zkLTC`}
       </Button>
-      {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
+      <WalletRpcRecoveryNotice error={error} />
+      {error && !isBandwidthLimitError(error) && (
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+      )}
     </div>
   )
 }
