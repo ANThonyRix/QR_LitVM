@@ -17,7 +17,7 @@ interface Props {
 
 export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props) {
   const { isConnected } = useAccount()
-  const { pay, isPending, isConfirming, isSuccess, error } = usePay()
+  const { pay, isPending, isPreparingWallet, isConfirming, isSuccess, error } = usePay()
   const [customAmount, setCustomAmount] = useState('')
 
   useEffect(() => {
@@ -56,10 +56,11 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props)
       <Button
         className="w-full"
         size="lg"
-        disabled={!amount || isPending || isConfirming}
-        onClick={() => pay(requestId, amount)}
+        disabled={!amount || isPending || isPreparingWallet || isConfirming}
+        onClick={() => void pay(requestId, amount)}
       >
-        {isPending ? 'Confirm in wallet...' :
+        {isPreparingWallet ? 'Checking wallet network...' :
+         isPending ? 'Confirm in wallet...' :
          isConfirming ? 'Processing...' :
          `Pay ${amount} zkLTC`}
       </Button>

@@ -32,7 +32,7 @@ export function PaymentGenerator() {
   const [copied, setCopied] = useState(false)
   const [linkMode, setLinkMode] = useState<LinkMode>('one-time')
 
-  const { create, isPending, isConfirming, requestId, error } = useCreateRequest()
+  const { create, isPending, isPreparingWallet, isConfirming, requestId, error } = useCreateRequest()
 
   useEffect(() => {
     if (!requestId) {
@@ -156,9 +156,11 @@ export function PaymentGenerator() {
           className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
           onClick={handleCreate}
-          disabled={!label.trim() || isPending || isConfirming}
+          disabled={!label.trim() || isPending || isPreparingWallet || isConfirming}
         >
-          {isPending
+          {isPreparingWallet
+            ? 'Checking wallet network...'
+            : isPending
             ? 'Confirm in wallet...'
             : isConfirming
               ? 'Waiting for blockchain...'

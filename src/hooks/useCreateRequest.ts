@@ -1,30 +1,45 @@
 'use client'
+import { useState } from 'react'
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { CONTRACT_ADDRESS, CONTRACT_ABI, CONTRACT_VERSION } from '@/lib/contract'
+import { ensureHealthyLitvmWalletRpc } from '@/lib/litvmNetwork'
 import { PAYMENT_REQUEST_V3_ABI } from '@/lib/PaymentRequestV3.abi'
 import { decodeEventLog, parseEther } from 'viem'
 
 export function useCreateRequest() {
-  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const [localError, setLocalError] = useState<Error | null>(null)
+  const [isPreparingWallet, setIsPreparingWallet] = useState(false)
+  const { writeContractAsync, data: hash, isPending, error } = useWriteContract()
 
-  function create(amountEth: string, label: string, reusable: boolean) {
+  async function create(amountEth: string, label: string, reusable: boolean) {
     const amount = amountEth ? parseEther(amountEth) : 0n
-    if (reusable && CONTRACT_VERSION === 'v3') {
-      writeContract({
+    setLocalError(null)
+    setIsPreparingWallet(true)
+
+    try {
+      await ensureHealthyLitvmWalletRpc()
+
+      if (reusable && CONTRACT_VERSION === 'v3') {
+        await writeContractAsync({
+          address: CONTRACT_ADDRESS,
+          abi: PAYMENT_REQUEST_V3_ABI,
+          functionName: 'createReusableRequest',
+          args: [amount, label],
+        })
+        return
+      }
+
+      await writeContractAsync({
         address: CONTRACT_ADDRESS,
-        abi: PAYMENT_REQUEST_V3_ABI,
-        functionName: 'createReusableRequest',
+        abi: CONTRACT_ABI,
+        functionName: 'createRequest',
         args: [amount, label],
       })
-      return
+    } catch (caughtError) {
+      setLocalError(caughtError instanceof Error ? caughtError : new Error('Unable to create the payment link.'))
+    } finally {
+      setIsPreparingWallet(false)
     }
-
-    writeContract({
-      address: CONTRACT_ADDRESS,
-      abi: CONTRACT_ABI,
-      functionName: 'createRequest',
-      args: [amount, label],
-    })
   }
 
   const { isLoading: isConfirming, data: receipt } =
@@ -48,5 +63,13 @@ export function useCreateRequest() {
     })
     .find(Boolean)
 
-  return { create, hash, isPending, isConfirming, requestId, error }
+  return {
+    create,
+    hash,
+    isPending,
+    isPreparingWallet,
+    isConfirming,
+    requestId,
+    error: localError ?? error,
+  }
 }
