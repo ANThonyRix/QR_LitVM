@@ -13,6 +13,9 @@ contract PaymentRequest {
         bool    paid;
         address payer;
         uint256 paidAt;
+        bool    reusable;
+        uint256 paymentCount;
+        uint256 totalPaid;
     }
 
     mapping(bytes32 => Request) public requests;
@@ -27,7 +30,8 @@ contract PaymentRequest {
         address indexed recipient,
         uint256 amount,
         string  label,
-        uint256 createdAt
+        uint256 createdAt,
+        bool    reusable
     );
     event RequestPaid(
         bytes32 indexed id,
@@ -35,7 +39,10 @@ contract PaymentRequest {
         address indexed recipient,
         uint256 amount,
         string  label,
-        uint256 paidAt
+        uint256 paidAt,
+        uint256 paymentCount,
+        uint256 totalPaid,
+        bool    reusable
     );
     event UsernameRegistered(
         address indexed user,
@@ -67,9 +74,24 @@ contract PaymentRequest {
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
+        return _createRequest(amount, label, false);
+    }
+
+    function createReusableRequest(
+        uint256 amount,
+        string calldata label
+    ) external returns (bytes32 id) {
+        return _createRequest(amount, label, true);
+    }
+
+    function _createRequest(
+        uint256 amount,
+        string calldata label,
+        bool reusable
+    ) internal returns (bytes32 id) {
         uint256 createdAt = block.timestamp;
         id = keccak256(
-            abi.encodePacked(msg.sender, amount, label, createdAt, block.prevrandao)
+            abi.encodePacked(msg.sender, amount, label, createdAt, reusable, block.prevrandao)
         );
         requests[id] = Request({
             recipient: payable(msg.sender),
@@ -78,15 +100,20 @@ contract PaymentRequest {
             createdAt: createdAt,
             paid:      false,
             payer:     address(0),
-            paidAt:    0
+            paidAt:    0,
+            reusable:  reusable,
+            paymentCount: 0,
+            totalPaid: 0
         });
-        emit RequestCreated(id, msg.sender, amount, label, createdAt);
+        emit RequestCreated(id, msg.sender, amount, label, createdAt, reusable);
     }
 
     function pay(bytes32 id) external payable nonReentrant {
         Request storage req = requests[id];
         require(req.recipient != address(0), "Not found");
-        require(!req.paid, "Already paid");
+        if (!req.reusable) {
+            require(!req.paid, "Already paid");
+        }
         if (req.amount > 0) {
             require(msg.value == req.amount, "Wrong amount");
         } else {
@@ -96,6 +123,8 @@ contract PaymentRequest {
         req.paid   = true;
         req.payer  = msg.sender;
         req.paidAt = block.timestamp;
+        req.paymentCount += 1;
+        req.totalPaid += msg.value;
 
         (bool ok,) = req.recipient.call{value: msg.value}("");
         if (!ok) {
@@ -103,7 +132,17 @@ contract PaymentRequest {
             emit ProceedsQueued(req.recipient, msg.value);
         }
 
-        emit RequestPaid(id, msg.sender, req.recipient, msg.value, req.label, req.paidAt);
+        emit RequestPaid(
+            id,
+            msg.sender,
+            req.recipient,
+            msg.value,
+            req.label,
+            req.paidAt,
+            req.paymentCount,
+            req.totalPaid,
+            req.reusable
+        );
     }
 
     function registerUsername(string calldata username) external {

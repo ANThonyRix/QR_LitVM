@@ -52,6 +52,7 @@ describe('PaymentRequest', function () {
           amount,
           label,
           block!.timestamp,
+          false,
         )
     })
 
@@ -66,6 +67,22 @@ describe('PaymentRequest', function () {
           0n,
           'open',
           (createdAt: bigint | number) => Number(createdAt) > 0,
+          false,
+        )
+    })
+
+    it('creates reusable requests with the reusable flag set', async function () {
+      const { contract, owner } = await deploy()
+
+      await expect(contract.createReusableRequest(0n, 'donation'))
+        .to.emit(contract, 'RequestCreated')
+        .withArgs(
+          (id: string) => id !== ethers.ZeroHash,
+          owner.address,
+          0n,
+          'donation',
+          (createdAt: bigint | number) => Number(createdAt) > 0,
+          true,
         )
     })
 
@@ -76,6 +93,7 @@ describe('PaymentRequest', function () {
       const req = await contract.requests(requestId)
 
       expect(req.createdAt).to.be.greaterThan(0n)
+      expect(req.reusable).to.equal(false)
       expect(await contract.requestExists(requestId)).to.equal(true)
       expect(await contract.requestExists(ethers.ZeroHash)).to.equal(false)
     })
@@ -108,6 +126,9 @@ describe('PaymentRequest', function () {
           amount,
           requestBeforePayment.label,
           block!.timestamp,
+          1n,
+          amount,
+          false,
         )
 
       const after = await ethers.provider.getBalance(owner.address)
@@ -116,6 +137,8 @@ describe('PaymentRequest', function () {
       expect(req.paid).to.equal(true)
       expect(req.payer).to.equal(alice.address)
       expect(req.paidAt).to.equal(BigInt(block!.timestamp))
+      expect(req.paymentCount).to.equal(1n)
+      expect(req.totalPaid).to.equal(amount)
       expect(after - before).to.equal(amount)
       expect(await contract.pendingWithdrawals(owner.address)).to.equal(0n)
     })
@@ -145,6 +168,9 @@ describe('PaymentRequest', function () {
           amount,
           requestBeforePayment.label,
           payBlock!.timestamp,
+          1n,
+          amount,
+          false,
         )
 
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
@@ -184,6 +210,9 @@ describe('PaymentRequest', function () {
           amount,
           'contract recipient',
           (paidAt: bigint | number) => Number(paidAt) > 0,
+          1n,
+          amount,
+          false,
         )
 
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
@@ -230,9 +259,86 @@ describe('PaymentRequest', function () {
           anyAmount,
           'open',
           (paidAt: bigint | number) => Number(paidAt) > 0,
+          1n,
+          anyAmount,
+          false,
         )
 
       expect(await contract.pendingWithdrawals(owner.address)).to.equal(0n)
+    })
+
+    it('reusable open-amount request accepts multiple payments and keeps the link active', async function () {
+      const { contract, owner, alice, bob } = await deploy()
+      const tx = await contract.createReusableRequest(0n, 'tips')
+      const requestId = await getRequestId(contract, tx)
+      const firstAmount = ethers.parseEther('0.2')
+      const secondAmount = ethers.parseEther('0.35')
+
+      await expect(
+        contract.connect(alice).pay(requestId, { value: firstAmount }),
+      )
+        .to.emit(contract, 'RequestPaid')
+        .withArgs(
+          requestId,
+          alice.address,
+          owner.address,
+          firstAmount,
+          'tips',
+          (paidAt: bigint | number) => Number(paidAt) > 0,
+          1n,
+          firstAmount,
+          true,
+        )
+
+      await expect(
+        contract.connect(bob).pay(requestId, { value: secondAmount }),
+      )
+        .to.emit(contract, 'RequestPaid')
+        .withArgs(
+          requestId,
+          bob.address,
+          owner.address,
+          secondAmount,
+          'tips',
+          (paidAt: bigint | number) => Number(paidAt) > 0,
+          2n,
+          firstAmount + secondAmount,
+          true,
+        )
+
+      const req = await contract.requests(requestId)
+      expect(req.reusable).to.equal(true)
+      expect(req.paymentCount).to.equal(2n)
+      expect(req.totalPaid).to.equal(firstAmount + secondAmount)
+      expect(req.payer).to.equal(bob.address)
+      expect(req.paid).to.equal(true)
+    })
+
+    it('reusable fixed-amount request requires the same amount every time', async function () {
+      const { contract, owner, alice, bob } = await deploy()
+      const amount = ethers.parseEther('0.1')
+      const tx = await contract.createReusableRequest(amount, 'product')
+      const requestId = await getRequestId(contract, tx)
+
+      await contract.connect(alice).pay(requestId, { value: amount })
+
+      await expect(
+        contract.connect(bob).pay(requestId, { value: ethers.parseEther('0.2') }),
+      ).to.be.revertedWith('Wrong amount')
+
+      await expect(contract.connect(bob).pay(requestId, { value: amount }))
+        .to.emit(contract, 'RequestPaid')
+        .withArgs(
+          requestId,
+          bob.address,
+          owner.address,
+          amount,
+          'product',
+          (paidAt: bigint | number) => Number(paidAt) > 0,
+          2n,
+          amount * 2n,
+          true,
+        )
     })
 
     it('rejects direct transfers to the contract', async function () {

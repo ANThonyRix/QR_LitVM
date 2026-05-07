@@ -10,9 +10,13 @@ export type PaymentRequest = {
   paid: boolean
   payer: `0x${string}`
   paidAt: bigint
+  reusable: boolean
+  paymentCount: bigint
+  totalPaid: bigint
 }
 
 type RawPaymentRequest =
+  | readonly [`0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint, boolean, bigint, bigint]
   | readonly [`0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint]
   | readonly [`0x${string}`, bigint, string, boolean, `0x${string}`, bigint]
   | PaymentRequest
@@ -30,7 +34,7 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
   const rawRequest = data as RawPaymentRequest
 
   const request: PaymentRequest | undefined = Array.isArray(rawRequest)
-    ? CONTRACT_VERSION === 'v2'
+    ? CONTRACT_VERSION === 'v3'
       ? {
           recipient: rawRequest[0],
           amount: rawRequest[1],
@@ -39,7 +43,23 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
           paid: rawRequest[4] as boolean,
           payer: rawRequest[5] as `0x${string}`,
           paidAt: rawRequest[6] as bigint,
+          reusable: rawRequest[7] as boolean,
+          paymentCount: rawRequest[8] as bigint,
+          totalPaid: rawRequest[9] as bigint,
         }
+      : CONTRACT_VERSION === 'v2'
+        ? {
+            recipient: rawRequest[0],
+            amount: rawRequest[1],
+            label: rawRequest[2],
+            createdAt: rawRequest[3] as bigint,
+            paid: rawRequest[4] as boolean,
+            payer: rawRequest[5] as `0x${string}`,
+            paidAt: rawRequest[6] as bigint,
+            reusable: false,
+            paymentCount: rawRequest[4] ? 1n : 0n,
+            totalPaid: 0n,
+          }
       : {
           recipient: rawRequest[0],
           amount: rawRequest[1],
@@ -48,6 +68,9 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
           paid: rawRequest[3] as boolean,
           payer: rawRequest[4] as `0x${string}`,
           paidAt: rawRequest[5] as bigint,
+          reusable: false,
+          paymentCount: rawRequest[3] ? 1n : 0n,
+          totalPaid: 0n,
         }
     : (rawRequest as PaymentRequest | undefined)
 

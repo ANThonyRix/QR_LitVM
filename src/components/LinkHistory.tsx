@@ -77,7 +77,9 @@ function HistoryList({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{entry.label}</p>
-              <p className="mt-1 text-xs text-white/45">{entry.amountDisplay} zkLTC</p>
+              <p className="mt-1 text-xs text-white/45">
+                {entry.amountDisplay === 'Any amount' ? entry.amountDisplay : `${entry.amountDisplay} zkLTC`}
+              </p>
             </div>
             <span className="shrink-0 rounded-full border border-white/8 px-2 py-1 text-[11px] text-white/45">
               {formatTimestamp(entry.timestamp)}

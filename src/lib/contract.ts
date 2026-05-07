@@ -1,5 +1,6 @@
 import { PAYMENT_REQUEST_ABI } from './PaymentRequest.abi'
 import { PAYMENT_REQUEST_V1_ABI } from './PaymentRequestV1.abi'
+import { PAYMENT_REQUEST_V3_ABI } from './PaymentRequestV3.abi'
 
 export const DEFAULT_CONTRACT_ADDRESS =
   '0x298c05FDECb261287873B17f5dACa53b3D5ed3c2' as const
@@ -14,11 +15,17 @@ export const CONTRACT_ADDRESS =
 export const CONTRACT_VERSION =
   process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v1'
     ? 'v1'
-    : DEFAULT_CONTRACT_VERSION
+    : process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v3'
+      ? 'v3'
+      : DEFAULT_CONTRACT_VERSION
 
 export const CONTRACT_DEPLOYMENT_BLOCK = BigInt(
   process.env.NEXT_PUBLIC_CONTRACT_DEPLOYMENT_BLOCK ?? DEFAULT_CONTRACT_DEPLOYMENT_BLOCK,
 )
 
 export const CONTRACT_ABI =
-  CONTRACT_VERSION === 'v2' ? PAYMENT_REQUEST_ABI : PAYMENT_REQUEST_V1_ABI
+  CONTRACT_VERSION === 'v1'
+    ? PAYMENT_REQUEST_V1_ABI
+    : CONTRACT_VERSION === 'v3'
+      ? PAYMENT_REQUEST_V3_ABI
+      : PAYMENT_REQUEST_ABI

@@ -54,6 +54,7 @@ export default function PayPage({
 
   const amount = request.amount ?? 0n
   const amountDisplay = amount > 0n ? `${formatEther(amount)} zkLTC` : 'Any amount'
+  const isClosed = !request.reusable && request.paid
 
   return (
     <main className="min-h-screen relative overflow-hidden" style={bg}>
@@ -82,13 +83,22 @@ export default function PayPage({
           <div className="space-y-1">
             <p className="text-xs text-white/40 uppercase tracking-wide">Payment request</p>
             <h1 className="text-xl font-bold text-white">{request.label}</h1>
+            {request.reusable && (
+              <p className="text-sm text-blue-300">Reusable payment link</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-3xl font-bold text-white">{amountDisplay}</p>
             </div>
-            <PaymentStatus paid={request.paid} payer={request.payer} />
+            <PaymentStatus
+              paid={request.paid}
+              payer={request.payer}
+              reusable={request.reusable}
+              paymentCount={request.paymentCount}
+              totalPaid={request.totalPaid}
+            />
           </div>
 
           <div className="rounded-xl p-3 border border-white/8"
@@ -97,8 +107,13 @@ export default function PayPage({
             <p className="text-xs font-mono text-white/60 break-all">{request.recipient}</p>
           </div>
 
-          {!request.paid && (
-            <PayButton requestId={id} fixedAmount={amount} paid={request.paid} />
+          {!isClosed && (
+            <PayButton
+              requestId={id}
+              fixedAmount={amount}
+              isClosed={isClosed}
+              reusable={request.reusable}
+            />
           )}
         </div>
 

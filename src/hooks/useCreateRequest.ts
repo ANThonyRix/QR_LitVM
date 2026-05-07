@@ -1,13 +1,24 @@
 'use client'
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contract'
+import { CONTRACT_ADDRESS, CONTRACT_ABI, CONTRACT_VERSION } from '@/lib/contract'
+import { PAYMENT_REQUEST_V3_ABI } from '@/lib/PaymentRequestV3.abi'
 import { decodeEventLog, parseEther } from 'viem'
 
 export function useCreateRequest() {
   const { writeContract, data: hash, isPending, error } = useWriteContract()
 
-  function create(amountEth: string, label: string) {
+  function create(amountEth: string, label: string, reusable: boolean) {
     const amount = amountEth ? parseEther(amountEth) : 0n
+    if (reusable && CONTRACT_VERSION === 'v3') {
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: PAYMENT_REQUEST_V3_ABI,
+        functionName: 'createReusableRequest',
+        args: [amount, label],
+      })
+      return
+    }
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,

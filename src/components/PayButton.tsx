@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { usePay } from '@/hooks/usePay'
 import { Button } from '@/components/ui/button'
@@ -9,15 +9,22 @@ import { formatEther } from 'viem'
 interface Props {
   requestId: `0x${string}`
   fixedAmount: bigint
-  paid: boolean
+  isClosed: boolean
+  reusable: boolean
 }
 
-export function PayButton({ requestId, fixedAmount, paid }: Props) {
+export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props) {
   const { isConnected } = useAccount()
   const { pay, isPending, isConfirming, isSuccess, error } = usePay()
   const [customAmount, setCustomAmount] = useState('')
 
-  if (paid || isSuccess) {
+  useEffect(() => {
+    if (reusable && isSuccess && fixedAmount === 0n) {
+      setCustomAmount('')
+    }
+  }, [fixedAmount, isSuccess, reusable])
+
+  if (isClosed) {
     return <p className="text-green-600 font-medium">Payment confirmed!</p>
   }
 
@@ -29,6 +36,11 @@ export function PayButton({ requestId, fixedAmount, paid }: Props) {
 
   return (
     <div className="space-y-3">
+      {reusable && isSuccess && (
+        <p className="text-sm text-green-600 font-medium">
+          Payment confirmed. This reusable link can accept another payment.
+        </p>
+      )}
       {fixedAmount === 0n && (
         <Input
           type="number"
