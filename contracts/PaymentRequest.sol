@@ -19,10 +19,13 @@ contract PaymentRequest {
         uint256 totalPaid;
     }
 
+    uint256 private constant _MAX_LABEL_LENGTH = 256;
+
     mapping(bytes32 => Request) public requests;
     mapping(string  => address) public usernameToAddress;
     mapping(address => string)  public addressToUsername;
     mapping(address => uint256) public pendingWithdrawals;
+    mapping(address => uint256) private _nonces;
 
     uint256 private _status = _NOT_ENTERED;
 
@@ -109,11 +112,13 @@ contract PaymentRequest {
         bool reusable
     ) internal returns (bytes32 id) {
         require(recipient != address(0), "Zero recipient");
+        require(bytes(label).length > 0, "Empty label");
+        require(bytes(label).length <= _MAX_LABEL_LENGTH, "Label too long");
 
         address creator = msg.sender;
         uint256 createdAt = block.timestamp;
         id = keccak256(
-            abi.encodePacked(creator, recipient, amount, label, createdAt, reusable, block.prevrandao)
+            abi.encodePacked(creator, recipient, amount, label, createdAt, reusable, _nonces[creator]++)
         );
         requests[id] = Request({
             creator: creator,
@@ -198,7 +203,6 @@ contract PaymentRequest {
         addressToUsername[msg.sender] = newUsername;
 
         emit UsernameChanged(msg.sender, oldUsername, newUsername);
-        emit UsernameRegistered(msg.sender, newUsername);
     }
 
     function withdrawProceeds(address payable to) external nonReentrant {

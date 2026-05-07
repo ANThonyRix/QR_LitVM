@@ -49,6 +49,7 @@ describe('PaymentRequest', function () {
         .withArgs(
           (id: string) => id !== ethers.ZeroHash,
           owner.address,
+          owner.address,
           amount,
           label,
           block!.timestamp,
@@ -64,6 +65,7 @@ describe('PaymentRequest', function () {
         .withArgs(
           (id: string) => id !== ethers.ZeroHash,
           owner.address,
+          owner.address,
           0n,
           'open',
           (createdAt: bigint | number) => Number(createdAt) > 0,
@@ -78,6 +80,7 @@ describe('PaymentRequest', function () {
         .to.emit(contract, 'RequestCreated')
         .withArgs(
           (id: string) => id !== ethers.ZeroHash,
+          owner.address,
           owner.address,
           0n,
           'donation',
@@ -424,8 +427,6 @@ describe('PaymentRequest', function () {
       await expect(contract.connect(alice).changeUsername('alice2'))
         .to.emit(contract, 'UsernameChanged')
         .withArgs(alice.address, 'alice', 'alice2')
-        .and.to.emit(contract, 'UsernameRegistered')
-        .withArgs(alice.address, 'alice2')
 
       expect(await contract.addressToUsername(alice.address)).to.equal('alice2')
       expect(await contract.usernameToAddress('alice2')).to.equal(alice.address)
@@ -446,8 +447,8 @@ describe('PaymentRequest', function () {
       const { contract, alice } = await deploy()
 
       await expect(contract.connect(alice).changeUsername('alice'))
-        .to.emit(contract, 'UsernameRegistered')
-        .withArgs(alice.address, 'alice')
+        .to.emit(contract, 'UsernameChanged')
+        .withArgs(alice.address, '', 'alice')
     })
 
     it('reverts if new username is already taken', async function () {
