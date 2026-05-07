@@ -161,20 +161,30 @@ describe('PaymentRequest', function () {
       const { contract, alice, bob } = await deploy()
 
       const tx = await contract
-        .connect(alice)
+        .connect(bob)
         .createRequestForWithPayout(bob.address, 1n, 'with payout', alice.address)
       const requestId = await getRequestId(contract, tx)
 
       expect(await contract.requestPayoutAddresses(requestId)).to.equal(alice.address)
     })
 
-    it('reverts when payout address is zero', async function () {
+    it('reverts when a third party tries to set a custom payout for someone else', async function () {
       const { contract, alice, bob } = await deploy()
 
       await expect(
         contract
           .connect(alice)
-          .createRequestForWithPayout(bob.address, 1n, 'broken payout', ethers.ZeroAddress),
+          .createRequestForWithPayout(bob.address, 1n, 'hijack payout', alice.address),
+      ).to.be.revertedWith('Only recipient can set payout')
+    })
+
+    it('reverts when payout address is zero', async function () {
+      const { contract, alice } = await deploy()
+
+      await expect(
+        contract
+          .connect(alice)
+          .createRequestForWithPayout(alice.address, 1n, 'broken payout', ethers.ZeroAddress),
       ).to.be.revertedWith('Zero payout')
     })
   })
@@ -266,29 +276,23 @@ describe('PaymentRequest', function () {
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(0n)
     })
 
-    it('lets anyone release queued proceeds to a predefined payout address', async function () {
-      const { contract, rejectingReceiver, owner, alice, bob } = await deploy()
+    it('reverts when a third party tries to release queued proceeds for someone else', async function () {
+      const { contract, rejectingReceiver, alice } = await deploy()
       const amount = ethers.parseEther('0.08')
+      const paymentRequestAddress = await contract.getAddress()
       const receiverAddress = await rejectingReceiver.getAddress()
 
-      const tx = await contract
-        .connect(owner)
-        .createRequestForWithPayout(receiverAddress, amount, 'release to bob', bob.address)
+      const tx = await rejectingReceiver.createRequest(paymentRequestAddress, amount, 'queued')
       const requestId = await getRequestId(contract, tx)
 
-      await expect(contract.connect(alice).pay(requestId, { value: amount }))
-        .to.emit(contract, 'ProceedsQueued')
-        .withArgs(bob.address, amount)
+      await contract.connect(alice).pay(requestId, { value: amount })
+      expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
 
-      const before = await ethers.provider.getBalance(bob.address)
+      await expect(
+        contract.connect(alice).releaseQueuedProceeds(receiverAddress),
+      ).to.be.revertedWith('Not your proceeds')
 
-      await expect(contract.connect(alice).releaseQueuedProceeds(bob.address))
-        .to.emit(contract, 'ProceedsWithdrawn')
-        .withArgs(bob.address, bob.address, amount)
-
-      const after = await ethers.provider.getBalance(bob.address)
-      expect(after - before).to.equal(amount)
-      expect(await contract.pendingWithdrawals(bob.address)).to.equal(0n)
+      expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(amount)
     })
 
     it('lets an EOA recipient withdraw only when some proceeds were queued', async function () {

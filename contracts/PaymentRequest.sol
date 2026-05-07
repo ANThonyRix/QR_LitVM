@@ -139,6 +139,7 @@ contract PaymentRequest {
         string calldata label,
         address payable payoutAddress
     ) external returns (bytes32 id) {
+        require(msg.sender == recipient, "Only recipient can set payout");
         return _createRequest(recipient, amount, label, false, payoutAddress);
     }
 
@@ -148,6 +149,7 @@ contract PaymentRequest {
         string calldata label,
         address payable payoutAddress
     ) external returns (bytes32 id) {
+        require(msg.sender == recipient, "Only recipient can set payout");
         return _createRequest(recipient, amount, label, true, payoutAddress);
     }
 
@@ -266,6 +268,7 @@ contract PaymentRequest {
     }
 
     function releaseQueuedProceeds(address payable recipient) external nonReentrant {
+        require(msg.sender == recipient, "Not your proceeds");
         _withdrawQueuedProceeds(recipient, recipient);
     }
 
