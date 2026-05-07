@@ -1,9 +1,15 @@
 'use client'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { CONTRACT_ADDRESS } from '@/lib/contract'
 
 export function FAQButton() {
   const [open, setOpen] = useState(false)
+  const pathname = usePathname()
+
+  if (pathname?.startsWith('/widget/')) {
+    return null
+  }
 
   return (
     <>
