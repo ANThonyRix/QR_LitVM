@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { WalletConnect } from '@/components/WalletConnect'
 import { PaymentGenerator } from '@/components/PaymentGenerator'
 import { UsernameRegister } from '@/components/UsernameRegister'
@@ -20,7 +21,7 @@ export default function Home() {
       <div className="relative max-w-xl mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <div className="relative w-10 h-10 rounded-xl overflow-hidden ring-1 ring-white/10 shadow-lg">
               <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
             </div>
@@ -28,7 +29,7 @@ export default function Home() {
               <h1 className="text-xl font-bold text-white leading-none">QR LitVM</h1>
               <p className="text-xs mt-0.5" style={{ color: 'oklch(0.58 0.03 250)' }}>Payment links in zkLTC</p>
             </div>
-          </div>
+          </Link>
           <WalletConnect />
         </header>
 

@@ -1,6 +1,7 @@
 'use client'
 import { use } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useAddressForUsername } from '@/hooks/useUsername'
 import { WalletConnect } from '@/components/WalletConnect'
 
@@ -56,12 +57,12 @@ export default function UserProfilePage({
 
       <div className="relative max-w-xl mx-auto px-4 py-8 space-y-6">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
             <div className="relative w-8 h-8 rounded-lg overflow-hidden ring-1 ring-white/10">
               <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
             </div>
             <span className="font-bold text-white">QR LitVM</span>
-          </div>
+          </Link>
           <WalletConnect />
         </header>
 
