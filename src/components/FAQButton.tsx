@@ -94,7 +94,8 @@ export function FAQButton() {
                       <p className="text-white/40 text-xs mb-1">Add the LitVM network:</p>
                       {[
                         ['Network', 'LitVM Liteforge Testnet'],
-                        ['RPC URL', 'https://liteforge.rpc.caldera.xyz/http'],
+                        ['RPC URL', 'https://liteforge.rpc.caldera.xyz/infra-partner-http'],
+                        ['Fallback RPC', 'https://liteforge.rpc.caldera.xyz/http'],
                         ['Chain ID', '4441'],
                         ['Currency', 'zkLTC'],
                         ['Explorer', 'liteforge.explorer.caldera.xyz'],
