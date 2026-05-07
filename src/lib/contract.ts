@@ -4,13 +4,13 @@ import { PAYMENT_REQUEST_V3_ABI } from './PaymentRequestV3.abi'
 import { PAYMENT_REQUEST_V4_ABI } from './PaymentRequestV4.abi'
 
 export const DEFAULT_CONTRACT_ADDRESS =
-  '0xb146948808c8efBB44958E35E6d5bd1d36C8aF31' as const
+  '0x99677E65b5147e700FF838Ddd1a30b7D2b313808' as const
 
-export const DEFAULT_CONTRACT_VERSION = 'v3' as const
+export const DEFAULT_CONTRACT_VERSION = 'v5' as const
 
-export const DEFAULT_CONTRACT_DEPLOYMENT_BLOCK = 6067830n
+export const DEFAULT_CONTRACT_DEPLOYMENT_BLOCK = 6112856n
 
-type ContractVersion = 'v1' | 'v2' | 'v3' | 'v4'
+type ContractVersion = 'v1' | 'v2' | 'v3' | 'v4' | 'v5'
 
 export const CONTRACT_ADDRESS =
   (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? DEFAULT_CONTRACT_ADDRESS) as `0x${string}`
@@ -24,7 +24,9 @@ export const CONTRACT_VERSION: ContractVersion =
         ? 'v3'
         : process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v4'
           ? 'v4'
-        : DEFAULT_CONTRACT_VERSION
+          : process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v5'
+            ? 'v5'
+          : DEFAULT_CONTRACT_VERSION
 
 export const CONTRACT_DEPLOYMENT_BLOCK = BigInt(
   process.env.NEXT_PUBLIC_CONTRACT_DEPLOYMENT_BLOCK ?? DEFAULT_CONTRACT_DEPLOYMENT_BLOCK,
@@ -33,7 +35,7 @@ export const CONTRACT_DEPLOYMENT_BLOCK = BigInt(
 export const CONTRACT_ABI =
   CONTRACT_VERSION === 'v1'
     ? PAYMENT_REQUEST_V1_ABI
-    : CONTRACT_VERSION === 'v4'
+    : CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
       ? PAYMENT_REQUEST_V4_ABI
     : CONTRACT_VERSION === 'v3'
       ? PAYMENT_REQUEST_V3_ABI
