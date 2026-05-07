@@ -42,7 +42,7 @@ export function FAQButton() {
               style={{ background: 'oklch(0.11 0.03 264)' }}>
               <div className="flex items-center gap-2">
                 <span className="text-lg">❓</span>
-                <h2 className="font-bold text-white text-lg">FAQ - QR LitVM</h2>
+                <h2 className="font-bold text-white text-lg">FAQ - Pay LitVM</h2>
               </div>
               <button onClick={() => setOpen(false)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
@@ -55,7 +55,7 @@ export function FAQButton() {
 
               <section>
                 <p className="text-white/90">
-                  <strong className="text-white">QR LitVM</strong> - DApp (decentralized application) for receiving crypto payments in{' '}
+                  <strong className="text-white">Pay LitVM</strong> - DApp (decentralized application) for receiving crypto payments in{' '}
                   <strong className="text-blue-400">zkLTC</strong> (native token of the LitVM network).
                   Lets anyone create a payment link or QR code and receive payment directly to their wallet -
                   no intermediaries, no registration, no payment processor fees.

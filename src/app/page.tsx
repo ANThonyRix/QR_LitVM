@@ -26,7 +26,7 @@ export default function Home() {
               <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white leading-none">QR LitVM</h1>
+              <h1 className="text-xl font-bold text-white leading-none">Pay LitVM</h1>
               <p className="text-xs mt-0.5" style={{ color: 'oklch(0.58 0.03 250)' }}>Payment links in zkLTC</p>
             </div>
           </Link>

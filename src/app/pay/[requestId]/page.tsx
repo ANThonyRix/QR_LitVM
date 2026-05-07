@@ -95,7 +95,7 @@ export default function PayPage({
             <div className="relative w-8 h-8 rounded-lg overflow-hidden ring-1 ring-white/10">
               <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
             </div>
-            <span className="font-bold text-white text-lg">QR LitVM</span>
+            <span className="font-bold text-white text-lg">Pay LitVM</span>
           </Link>
           <WalletConnect />
         </header>

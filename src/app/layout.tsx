@@ -8,7 +8,7 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'QR LitVM - zkLTC Payment Links',
+  title: 'Pay LitVM - zkLTC Payment Links',
   description: 'Generate QR codes and payment links in zkLTC on LitVM testnet',
 }
 

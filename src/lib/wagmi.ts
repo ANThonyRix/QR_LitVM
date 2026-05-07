@@ -4,7 +4,7 @@ import { createConfig, fallback, http } from 'wagmi'
 import { litvm } from './chain'
 import { LITVM_BACKUP_RPC_URL, LITVM_DEFAULT_RPC_URL } from './litvmNetwork'
 
-const appName = 'QR LitVM'
+const appName = 'Pay LitVM'
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://qr-litvm.vercel.app'
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_PROJECT_ID'
 

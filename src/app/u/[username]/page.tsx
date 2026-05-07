@@ -65,7 +65,7 @@ export default function UserProfilePage({
             <div className="relative h-8 w-8 overflow-hidden rounded-lg ring-1 ring-white/10">
               <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
             </div>
-            <span className="font-bold text-white">QR LitVM</span>
+            <span className="font-bold text-white">Pay LitVM</span>
           </Link>
           <WalletConnect />
         </header>
