@@ -26,11 +26,13 @@ contract PaymentRequest {
     }
 
     uint256 private constant _MAX_LABEL_LENGTH = 256;
+    uint256 public constant RESCUE_TIMEOUT = 30 days;
 
     mapping(bytes32 => Request) public requests;
     mapping(string  => address) public usernameToAddress;
     mapping(address => string)  public addressToUsername;
     mapping(address => uint256) public pendingWithdrawals;
+    mapping(address => uint256) public pendingWithdrawalsQueuedAt;
     mapping(bytes32 => address payable) public requestPayoutAddresses;
     mapping(address => uint256) private _nonces;
     mapping(bytes32 => PaymentRecord[]) private _requestPayments;
@@ -214,6 +216,9 @@ contract PaymentRequest {
         (bool ok,) = req.recipient.call{value: msg.value}("");
         if (!ok) {
             address payable payoutAddress = requestPayoutAddresses[id];
+            if (pendingWithdrawals[payoutAddress] == 0) {
+                pendingWithdrawalsQueuedAt[payoutAddress] = block.timestamp;
+            }
             pendingWithdrawals[payoutAddress] += msg.value;
             emit ProceedsQueued(payoutAddress, msg.value);
         }
@@ -267,9 +272,15 @@ contract PaymentRequest {
         _withdrawQueuedProceeds(msg.sender, to);
     }
 
-    function releaseQueuedProceeds(address payable recipient) external nonReentrant {
-        require(msg.sender == recipient, "Not your proceeds");
-        _withdrawQueuedProceeds(recipient, recipient);
+    // Rescue proceeds stuck in a contract wallet that cannot call withdrawProceeds itself.
+    // Only callable after RESCUE_TIMEOUT (30 days) to prevent front-running griefing.
+    function rescueStuckProceeds(address payable payoutAddress) external nonReentrant {
+        require(pendingWithdrawalsQueuedAt[payoutAddress] > 0, "Nothing queued");
+        require(
+            block.timestamp >= pendingWithdrawalsQueuedAt[payoutAddress] + RESCUE_TIMEOUT,
+            "Too early"
+        );
+        _withdrawQueuedProceeds(payoutAddress, payoutAddress);
     }
 
     receive() external payable {
@@ -303,6 +314,7 @@ contract PaymentRequest {
         require(amount > 0, "Nothing to withdraw");
 
         pendingWithdrawals[recipient] = 0;
+        pendingWithdrawalsQueuedAt[recipient] = 0;
 
         (bool ok,) = to.call{value: amount}("");
         require(ok, "Withdraw failed");
