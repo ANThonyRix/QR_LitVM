@@ -58,11 +58,8 @@ export function useDirectPayment() {
       const createHash = await writeContractAsync({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
-        functionName: CONTRACT_VERSION === 'v5' ? 'createRequestForWithPayout' : 'createRequestFor',
-        args:
-          CONTRACT_VERSION === 'v5'
-            ? [recipientAddress, parsedAmount, label, recipientAddress]
-            : [recipientAddress, parsedAmount, label],
+        functionName: 'createRequestFor',
+        args: [recipientAddress, parsedAmount, label],
       })
 
       setStatus('waiting_create')
