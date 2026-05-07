@@ -1,6 +1,6 @@
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import { coinbaseWallet, injectedWallet, metaMaskWallet } from '@rainbow-me/rainbowkit/wallets'
-import { createConfig, http } from 'wagmi'
+import { createConfig, fallback, http } from 'wagmi'
 import { litvm } from './chain'
 
 const appName = 'QR LitVM'
@@ -29,7 +29,10 @@ export const wagmiConfig = createConfig({
   chains: [litvm],
   connectors,
   transports: {
-    [litvm.id]: http(),
+    [litvm.id]: fallback([
+      http('https://liteforge.rpc.caldera.xyz/infra-partner-http'),
+      http('https://liteforge.rpc.caldera.xyz/http'),
+    ]),
   },
   ssr: true,
 })

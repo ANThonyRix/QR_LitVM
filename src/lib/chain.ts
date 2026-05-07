@@ -1,5 +1,11 @@
 import { defineChain } from 'viem'
 
+const primaryRpcUrl =
+  process.env.NEXT_PUBLIC_LITVM_RPC_URL ?? 'https://liteforge.rpc.caldera.xyz/infra-partner-http'
+
+const fallbackRpcUrl =
+  process.env.NEXT_PUBLIC_LITVM_RPC_FALLBACK_URL ?? 'https://liteforge.rpc.caldera.xyz/http'
+
 export const litvm = defineChain({
   id: Number(process.env.NEXT_PUBLIC_LITVM_CHAIN_ID ?? '4441'),
   name: 'LitVM Liteforge Testnet',
@@ -9,7 +15,7 @@ export const litvm = defineChain({
     decimals: 18,
   },
   rpcUrls: {
-    default: { http: [process.env.NEXT_PUBLIC_LITVM_RPC_URL ?? 'https://liteforge.rpc.caldera.xyz/http'] },
+    default: { http: [primaryRpcUrl, fallbackRpcUrl] },
   },
   blockExplorers: {
     default: {

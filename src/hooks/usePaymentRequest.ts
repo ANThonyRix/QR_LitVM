@@ -28,7 +28,7 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
     abi: CONTRACT_ABI,
     functionName: 'requests',
     args: id ? [id] : undefined,
-    query: { enabled: !!id, refetchInterval: 5000 },
+    query: { enabled: !!id, refetchInterval: 15000 },
   })
 
   const rawRequest = data as RawPaymentRequest
