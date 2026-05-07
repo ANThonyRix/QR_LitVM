@@ -9,7 +9,7 @@ interface Props {
 export function EmbedCode({ requestId }: Props) {
   const [copied, setCopied] = useState(false)
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://qrlitvm.app'
-  const code = `<iframe\n  src="${origin}/widget/${requestId}"\n  width="300"\n  height="120"\n  frameborder="0"\n  style="border-radius:12px;border:1px solid #e2e8f0"\n></iframe>`
+  const code = `<iframe\n  src="${origin}/widget/${requestId}"\n  width="100%"\n  height="620"\n  frameborder="0"\n  scrolling="no"\n  style="max-width:560px;width:100%;min-height:620px;border:0;border-radius:24px;overflow:hidden;background:#050816;box-shadow:0 24px 80px rgba(3,7,18,.45)"\n></iframe>`
 
   const copy = async () => {
     await navigator.clipboard.writeText(code)
