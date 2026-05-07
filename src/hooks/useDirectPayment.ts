@@ -7,6 +7,7 @@ import { CONTRACT_ADDRESS, CONTRACT_VERSION } from '@/lib/contract'
 import { ensureHealthyLitvmWalletRpc } from '@/lib/litvmNetwork'
 import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
 import { PAYMENT_REQUEST_V4_ABI } from '@/lib/PaymentRequestV4.abi'
+import { PAYMENT_REQUEST_V5_ABI } from '@/lib/PaymentRequestV5.abi'
 
 type DirectPaymentStatus =
   | 'idle'
@@ -34,8 +35,8 @@ export function useDirectPayment() {
     amount: string
     label: string
   }) => {
-    if (CONTRACT_VERSION !== 'v4') {
-      setError(new Error('Direct username payments require the v4 contract.'))
+    if (CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5') {
+      setError(new Error('Direct username payments require the v4 or v5 contract.'))
       return null
     }
 
@@ -56,9 +57,12 @@ export function useDirectPayment() {
       setStatus('confirm_create')
       const createHash = await writeContractAsync({
         address: CONTRACT_ADDRESS,
-        abi: PAYMENT_REQUEST_V4_ABI,
-        functionName: 'createRequestFor',
-        args: [recipientAddress, parsedAmount, label],
+        abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
+        functionName: CONTRACT_VERSION === 'v5' ? 'createRequestForWithPayout' : 'createRequestFor',
+        args:
+          CONTRACT_VERSION === 'v5'
+            ? [recipientAddress, parsedAmount, label, recipientAddress]
+            : [recipientAddress, parsedAmount, label],
       })
 
       setStatus('waiting_create')
@@ -68,7 +72,7 @@ export function useDirectPayment() {
         .map(log => {
           try {
             const decoded = decodeEventLog({
-              abi: PAYMENT_REQUEST_V4_ABI,
+              abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
               data: log.data,
               topics: log.topics,
             })
@@ -91,7 +95,7 @@ export function useDirectPayment() {
       setStatus('confirm_payment')
       const payHash = await writeContractAsync({
         address: CONTRACT_ADDRESS,
-        abi: PAYMENT_REQUEST_V4_ABI,
+        abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
         functionName: 'pay',
         args: [createdRequestId],
         value: parsedAmount,

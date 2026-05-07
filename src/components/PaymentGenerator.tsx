@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WalletRpcRecoveryNotice } from './WalletRpcRecoveryNotice'
 import { EmbedCode } from './EmbedCode'
 import { QRDisplay } from './QRDisplay'
+import { isAddress } from 'viem'
 
 type LinkMode = 'one-time' | 'reusable'
 
@@ -32,12 +33,16 @@ export function PaymentGenerator({
   recipientUsername,
 }: PaymentGeneratorProps = {}) {
   const { isConnected } = useAccount()
-  const supportsReusableLinks = CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4'
-  const createsForExternalRecipient = Boolean(recipientAddress) && CONTRACT_VERSION === 'v4'
-  const requiresV4RecipientFlow = Boolean(recipientAddress) && CONTRACT_VERSION !== 'v4'
+  const supportsReusableLinks = CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+  const createsForExternalRecipient =
+    Boolean(recipientAddress) && (CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5')
+  const requiresRecipientFlowUpgrade =
+    Boolean(recipientAddress) && CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5'
+  const supportsCustomPayoutAddress = CONTRACT_VERSION === 'v5'
 
   const [amount, setAmount] = useState('')
   const [label, setLabel] = useState('')
+  const [payoutAddress, setPayoutAddress] = useState('')
   const [payUrl, setPayUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [linkMode, setLinkMode] = useState<LinkMode>('one-time')
@@ -54,12 +59,22 @@ export function PaymentGenerator({
     window.dispatchEvent(new Event(ONCHAIN_HISTORY_REFRESH_EVENT))
   }, [requestId])
 
+  const trimmedPayoutAddress = payoutAddress.trim()
+  const hasCustomPayoutAddress = trimmedPayoutAddress.length > 0
+  const hasInvalidPayoutAddress = hasCustomPayoutAddress && !isAddress(trimmedPayoutAddress)
+
   const handleCreate = () => {
-    if (!label.trim() || requiresV4RecipientFlow) {
+    if (!label.trim() || requiresRecipientFlowUpgrade || hasInvalidPayoutAddress) {
       return
     }
 
-    void create(amount, label, linkMode === 'reusable', recipientAddress)
+    void create(
+      amount,
+      label,
+      linkMode === 'reusable',
+      recipientAddress,
+      hasCustomPayoutAddress ? (trimmedPayoutAddress as `0x${string}`) : undefined,
+    )
   }
 
   const copyLink = async () => {
@@ -71,6 +86,7 @@ export function PaymentGenerator({
   const resetGenerator = () => {
     setAmount('')
     setLabel('')
+    setPayoutAddress('')
     setPayUrl('')
     setCopied(false)
     setLinkMode('one-time')
@@ -178,15 +194,40 @@ export function PaymentGenerator({
           </p>
         </div>
 
+        {supportsCustomPayoutAddress && (
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide text-white/70">Fallback payout address</Label>
+            <Input
+              placeholder="Optional safe wallet for queued payouts"
+              value={payoutAddress}
+              onChange={event => setPayoutAddress(event.target.value)}
+              className="border-white/10 bg-white/5 font-mono text-white placeholder:text-white/30 focus-visible:ring-blue-500/50"
+            />
+            <p className="text-xs text-white/40">
+              Used only if the recipient rejects direct transfers. Leave empty to use the default payout wallet.
+            </p>
+            {hasInvalidPayoutAddress && (
+              <p className="text-xs text-red-400">Enter a valid EVM address or leave this field empty.</p>
+            )}
+          </div>
+        )}
+
         <button
           type="button"
           className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
           onClick={handleCreate}
-          disabled={!label.trim() || requiresV4RecipientFlow || isPending || isPreparingWallet || isConfirming}
+          disabled={
+            !label.trim() ||
+            requiresRecipientFlowUpgrade ||
+            hasInvalidPayoutAddress ||
+            isPending ||
+            isPreparingWallet ||
+            isConfirming
+          }
         >
-          {requiresV4RecipientFlow
-            ? 'Deploy v4 to create links for this wallet'
+          {requiresRecipientFlowUpgrade
+            ? 'Deploy v5 to create links for this wallet'
             : isPreparingWallet
             ? 'Checking wallet network...'
             : isPending
@@ -198,9 +239,9 @@ export function PaymentGenerator({
                   : 'Create link'}
         </button>
 
-        {recipientAddress && CONTRACT_VERSION !== 'v4' && (
+        {recipientAddress && requiresRecipientFlowUpgrade && (
           <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-            This shortcut can create recipient payment links only after the app is switched to the v4 contract.
+            This shortcut can create recipient payment links only after the app is switched to the v5 contract.
           </p>
         )}
 

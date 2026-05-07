@@ -261,7 +261,9 @@ export function LinkHistory() {
                 title="Created links"
                 entries={createdEntries}
                 emptyText="No payment links created from this wallet yet."
-                counterpartyLabel={CONTRACT_VERSION === 'v4' ? 'Recipient' : undefined}
+                counterpartyLabel={
+                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' ? 'Recipient' : undefined
+                }
                 expandedSections={expandedSections}
                 onToggle={toggleSection}
               />

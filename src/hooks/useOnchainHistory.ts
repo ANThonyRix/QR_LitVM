@@ -12,6 +12,7 @@ import { PAYMENT_REQUEST_V1_ABI } from '@/lib/PaymentRequestV1.abi'
 import { PAYMENT_REQUEST_ABI as PAYMENT_REQUEST_V2_ABI } from '@/lib/PaymentRequest.abi'
 import { PAYMENT_REQUEST_V3_ABI } from '@/lib/PaymentRequestV3.abi'
 import { PAYMENT_REQUEST_V4_ABI } from '@/lib/PaymentRequestV4.abi'
+import { PAYMENT_REQUEST_V5_ABI } from '@/lib/PaymentRequestV5.abi'
 
 export const ONCHAIN_HISTORY_REFRESH_EVENT = 'qrlitvm-onchain-history-refresh'
 
@@ -63,6 +64,22 @@ function normalizeV1RequestSnapshot(rawRequest: readonly unknown[]): V1RequestSn
     payer: rawRequest[4] as `0x${string}`,
     paidAt: rawRequest[5] as bigint,
   }
+}
+
+function getModernHistoryAbi() {
+  if (CONTRACT_VERSION === 'v5') {
+    return PAYMENT_REQUEST_V5_ABI
+  }
+
+  if (CONTRACT_VERSION === 'v4') {
+    return PAYMENT_REQUEST_V4_ABI
+  }
+
+  if (CONTRACT_VERSION === 'v3') {
+    return PAYMENT_REQUEST_V3_ABI
+  }
+
+  return PAYMENT_REQUEST_V2_ABI
 }
 
 async function readV1Requests(publicClient: NonNullable<ReturnType<typeof usePublicClient>>, ids: `0x${string}`[]) {
@@ -133,21 +150,19 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
       try {
         const [createdLogs, paidLogs, receivedLogs] = await Promise.all([
           (async () => {
-            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4') {
+            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
               const requestCreatedEvent = getAbiItem({
-                abi:
-                  CONTRACT_VERSION === 'v4'
-                    ? PAYMENT_REQUEST_V4_ABI
-                    : CONTRACT_VERSION === 'v3'
-                      ? PAYMENT_REQUEST_V3_ABI
-                      : PAYMENT_REQUEST_V2_ABI,
+                abi: getModernHistoryAbi(),
                 name: 'RequestCreated',
               })
 
               return client.getLogs({
                 address: CONTRACT_ADDRESS,
                 event: requestCreatedEvent,
-                args: CONTRACT_VERSION === 'v4' ? { creator: walletAddress } : { recipient: walletAddress },
+                args:
+                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+                    ? { creator: walletAddress }
+                    : { recipient: walletAddress },
                 fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
                 toBlock: 'latest',
               })
@@ -167,14 +182,9 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
             })
           })(),
           (async () => {
-            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4') {
+            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
               const requestPaidEvent = getAbiItem({
-                abi:
-                  CONTRACT_VERSION === 'v4'
-                    ? PAYMENT_REQUEST_V4_ABI
-                    : CONTRACT_VERSION === 'v3'
-                      ? PAYMENT_REQUEST_V3_ABI
-                      : PAYMENT_REQUEST_V2_ABI,
+                abi: getModernHistoryAbi(),
                 name: 'RequestPaid',
               })
 
@@ -201,14 +211,9 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
             })
           })(),
           (async () => {
-            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4') {
+            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
               const requestPaidEvent = getAbiItem({
-                abi:
-                  CONTRACT_VERSION === 'v4'
-                    ? PAYMENT_REQUEST_V4_ABI
-                    : CONTRACT_VERSION === 'v3'
-                      ? PAYMENT_REQUEST_V3_ABI
-                      : PAYMENT_REQUEST_V2_ABI,
+                abi: getModernHistoryAbi(),
                 name: 'RequestPaid',
               })
 
@@ -239,7 +244,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
           return
         }
 
-        if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4') {
+        if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
           const createdLogsV2 = createdLogs as Array<{
             args: {
               id?: `0x${string}`
@@ -283,7 +288,9 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 amountDisplay: toAmountDisplay(amount),
                 timestamp: Number(createdAt),
                 counterparty:
-                  CONTRACT_VERSION === 'v4' ? (log.args.recipient as `0x${string}` | undefined) : undefined,
+                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+                    ? (log.args.recipient as `0x${string}` | undefined)
+                    : undefined,
               }
             })
             .filter(Boolean) as OnchainHistoryEntry[])

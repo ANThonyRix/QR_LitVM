@@ -2,6 +2,7 @@ import { PAYMENT_REQUEST_ABI } from './PaymentRequest.abi'
 import { PAYMENT_REQUEST_V1_ABI } from './PaymentRequestV1.abi'
 import { PAYMENT_REQUEST_V3_ABI } from './PaymentRequestV3.abi'
 import { PAYMENT_REQUEST_V4_ABI } from './PaymentRequestV4.abi'
+import { PAYMENT_REQUEST_V5_ABI } from './PaymentRequestV5.abi'
 
 export const DEFAULT_CONTRACT_ADDRESS =
   '0x99677E65b5147e700FF838Ddd1a30b7D2b313808' as const
@@ -35,7 +36,9 @@ export const CONTRACT_DEPLOYMENT_BLOCK = BigInt(
 export const CONTRACT_ABI =
   CONTRACT_VERSION === 'v1'
     ? PAYMENT_REQUEST_V1_ABI
-    : CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+    : CONTRACT_VERSION === 'v5'
+      ? PAYMENT_REQUEST_V5_ABI
+    : CONTRACT_VERSION === 'v4'
       ? PAYMENT_REQUEST_V4_ABI
     : CONTRACT_VERSION === 'v3'
       ? PAYMENT_REQUEST_V3_ABI

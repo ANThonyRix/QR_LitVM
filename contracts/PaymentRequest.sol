@@ -5,6 +5,12 @@ contract PaymentRequest {
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
 
+    struct PaymentRecord {
+        address payer;
+        uint256 amount;
+        uint256 paidAt;
+    }
+
     struct Request {
         address creator;
         address payable recipient;
@@ -25,7 +31,9 @@ contract PaymentRequest {
     mapping(string  => address) public usernameToAddress;
     mapping(address => string)  public addressToUsername;
     mapping(address => uint256) public pendingWithdrawals;
+    mapping(bytes32 => address payable) public requestPayoutAddresses;
     mapping(address => uint256) private _nonces;
+    mapping(bytes32 => PaymentRecord[]) private _requestPayments;
 
     uint256 private _status = _NOT_ENTERED;
 
@@ -67,6 +75,10 @@ contract PaymentRequest {
         address indexed to,
         uint256 amount
     );
+    event RequestPayoutConfigured(
+        bytes32 indexed id,
+        address indexed payoutAddress
+    );
 
     modifier nonReentrant() {
         require(_status != _ENTERED, "Reentrancy");
@@ -79,14 +91,30 @@ contract PaymentRequest {
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
-        return _createRequest(msg.sender, amount, label, false);
+        return _createRequest(msg.sender, amount, label, false, payable(msg.sender));
     }
 
     function createReusableRequest(
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
-        return _createRequest(msg.sender, amount, label, true);
+        return _createRequest(msg.sender, amount, label, true, payable(msg.sender));
+    }
+
+    function createRequestWithPayout(
+        uint256 amount,
+        string calldata label,
+        address payable payoutAddress
+    ) external returns (bytes32 id) {
+        return _createRequest(msg.sender, amount, label, false, payoutAddress);
+    }
+
+    function createReusableRequestWithPayout(
+        uint256 amount,
+        string calldata label,
+        address payable payoutAddress
+    ) external returns (bytes32 id) {
+        return _createRequest(msg.sender, amount, label, true, payoutAddress);
     }
 
     function createRequestFor(
@@ -94,7 +122,7 @@ contract PaymentRequest {
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
-        return _createRequest(recipient, amount, label, false);
+        return _createRequest(recipient, amount, label, false, payable(recipient));
     }
 
     function createReusableRequestFor(
@@ -102,16 +130,36 @@ contract PaymentRequest {
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
-        return _createRequest(recipient, amount, label, true);
+        return _createRequest(recipient, amount, label, true, payable(recipient));
+    }
+
+    function createRequestForWithPayout(
+        address recipient,
+        uint256 amount,
+        string calldata label,
+        address payable payoutAddress
+    ) external returns (bytes32 id) {
+        return _createRequest(recipient, amount, label, false, payoutAddress);
+    }
+
+    function createReusableRequestForWithPayout(
+        address recipient,
+        uint256 amount,
+        string calldata label,
+        address payable payoutAddress
+    ) external returns (bytes32 id) {
+        return _createRequest(recipient, amount, label, true, payoutAddress);
     }
 
     function _createRequest(
         address recipient,
         uint256 amount,
         string calldata label,
-        bool reusable
+        bool reusable,
+        address payable payoutAddress
     ) internal returns (bytes32 id) {
         require(recipient != address(0), "Zero recipient");
+        require(payoutAddress != address(0), "Zero payout");
         require(bytes(label).length > 0, "Empty label");
         require(bytes(label).length <= _MAX_LABEL_LENGTH, "Label too long");
 
@@ -133,7 +181,9 @@ contract PaymentRequest {
             paymentCount: 0,
             totalPaid: 0
         });
+        requestPayoutAddresses[id] = payoutAddress;
         emit RequestCreated(id, creator, recipient, amount, label, createdAt, reusable);
+        emit RequestPayoutConfigured(id, payoutAddress);
     }
 
     function pay(bytes32 id) external payable nonReentrant {
@@ -153,11 +203,17 @@ contract PaymentRequest {
         req.paidAt = block.timestamp;
         req.paymentCount += 1;
         req.totalPaid += msg.value;
+        _requestPayments[id].push(PaymentRecord({
+            payer: msg.sender,
+            amount: msg.value,
+            paidAt: req.paidAt
+        }));
 
         (bool ok,) = req.recipient.call{value: msg.value}("");
         if (!ok) {
-            pendingWithdrawals[req.recipient] += msg.value;
-            emit ProceedsQueued(req.recipient, msg.value);
+            address payable payoutAddress = requestPayoutAddresses[id];
+            pendingWithdrawals[payoutAddress] += msg.value;
+            emit ProceedsQueued(payoutAddress, msg.value);
         }
 
         emit RequestPaid(
@@ -206,17 +262,11 @@ contract PaymentRequest {
     }
 
     function withdrawProceeds(address payable to) external nonReentrant {
-        require(to != address(0), "Zero address");
+        _withdrawQueuedProceeds(msg.sender, to);
+    }
 
-        uint256 amount = pendingWithdrawals[msg.sender];
-        require(amount > 0, "Nothing to withdraw");
-
-        pendingWithdrawals[msg.sender] = 0;
-
-        (bool ok,) = to.call{value: amount}("");
-        require(ok, "Withdraw failed");
-
-        emit ProceedsWithdrawn(msg.sender, to, amount);
+    function releaseQueuedProceeds(address payable recipient) external nonReentrant {
+        _withdrawQueuedProceeds(recipient, recipient);
     }
 
     receive() external payable {
@@ -229,6 +279,32 @@ contract PaymentRequest {
 
     function requestExists(bytes32 id) external view returns (bool) {
         return requests[id].recipient != address(0);
+    }
+
+    function getPaymentCount(bytes32 id) external view returns (uint256) {
+        return _requestPayments[id].length;
+    }
+
+    function getPayment(
+        bytes32 id,
+        uint256 index
+    ) external view returns (address payer, uint256 amount, uint256 paidAt) {
+        PaymentRecord storage payment = _requestPayments[id][index];
+        return (payment.payer, payment.amount, payment.paidAt);
+    }
+
+    function _withdrawQueuedProceeds(address recipient, address payable to) internal {
+        require(to != address(0), "Zero address");
+
+        uint256 amount = pendingWithdrawals[recipient];
+        require(amount > 0, "Nothing to withdraw");
+
+        pendingWithdrawals[recipient] = 0;
+
+        (bool ok,) = to.call{value: amount}("");
+        require(ok, "Withdraw failed");
+
+        emit ProceedsWithdrawn(recipient, to, amount);
     }
 
     function _validateUsername(bytes memory usernameBytes) internal pure {

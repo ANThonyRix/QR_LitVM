@@ -6,6 +6,7 @@ import { CONTRACT_ADDRESS, CONTRACT_ABI, CONTRACT_VERSION } from '@/lib/contract
 export type PaymentRequest = {
   creator: `0x${string}`
   recipient: `0x${string}`
+  payoutAddress?: `0x${string}`
   amount: bigint
   label: string
   createdAt: bigint
@@ -46,13 +47,22 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
     query: { enabled: !!id, refetchInterval: 15000 },
   })
 
+  const { data: payoutAddress } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: 'requestPayoutAddresses',
+    args: id ? [id] : undefined,
+    query: { enabled: CONTRACT_VERSION === 'v5' && !!id, refetchInterval: 15000 },
+  })
+
   const rawRequest = data as RawPaymentRequest
 
   const request: PaymentRequest | undefined = Array.isArray(rawRequest)
-    ? CONTRACT_VERSION === 'v4'
+    ? CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
       ? {
           creator: rawRequest[0] as `0x${string}`,
           recipient: rawRequest[1] as `0x${string}`,
+          payoutAddress: payoutAddress as `0x${string}` | undefined,
           amount: rawRequest[2] as bigint,
           label: rawRequest[3] as string,
           createdAt: rawRequest[4] as bigint,
@@ -67,6 +77,7 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
         ? {
             creator: rawRequest[0] as `0x${string}`,
             recipient: rawRequest[0] as `0x${string}`,
+            payoutAddress: undefined,
             amount: rawRequest[1] as bigint,
             label: rawRequest[2] as string,
             createdAt: rawRequest[3] as bigint,
@@ -81,6 +92,7 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
           ? {
               creator: rawRequest[0] as `0x${string}`,
               recipient: rawRequest[0] as `0x${string}`,
+              payoutAddress: undefined,
               amount: rawRequest[1] as bigint,
               label: rawRequest[2] as string,
               createdAt: rawRequest[3] as bigint,
@@ -94,6 +106,7 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
           : {
               creator: rawRequest[0] as `0x${string}`,
               recipient: rawRequest[0] as `0x${string}`,
+              payoutAddress: undefined,
               amount: rawRequest[1] as bigint,
               label: rawRequest[2] as string,
               createdAt: 0n,

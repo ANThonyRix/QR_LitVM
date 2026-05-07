@@ -3,6 +3,7 @@ import { use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
+import { useRequestPayments } from '@/hooks/useRequestPayments'
 import { WalletConnect } from '@/components/WalletConnect'
 import { PayButton } from '@/components/PayButton'
 import { PaymentStatus } from '@/components/PaymentStatus'
@@ -26,6 +27,7 @@ export default function PayPage({
   const { requestId } = use(params)
   const id = requestId as `0x${string}`
   const { request, isLoading, error, refetch } = usePaymentRequest(id)
+  const { payments } = useRequestPayments(id, request?.paymentCount)
 
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -129,6 +131,14 @@ export default function PayPage({
             <p className="text-xs font-mono text-white/60 break-all">{request.recipient}</p>
           </div>
 
+          {request.payoutAddress && request.payoutAddress !== request.recipient && (
+            <div className="rounded-xl border border-amber-500/15 p-3"
+              style={{ background: 'oklch(1 0 0 / 3%)' }}>
+              <p className="text-xs text-amber-200/70 mb-0.5">Fallback payout address</p>
+              <p className="text-xs font-mono text-amber-100/80 break-all">{request.payoutAddress}</p>
+            </div>
+          )}
+
           {!isClosed && (
             <PayButton
               requestId={id}
@@ -138,6 +148,35 @@ export default function PayPage({
             />
           )}
         </div>
+
+        {payments.length > 0 && (
+          <div style={glassCard} className="p-6 space-y-3">
+            <div>
+              <p className="text-xs text-white/40 uppercase tracking-wide">Recent payments</p>
+              <p className="mt-1 text-sm text-white/60">Stored on-chain for this request.</p>
+            </div>
+
+            <div className="space-y-2">
+              {payments.map((payment, index) => (
+                <div
+                  key={`${payment.payer}-${payment.paidAt.toString()}-${index}`}
+                  className="rounded-xl border border-white/8 px-3 py-3"
+                  style={{ background: 'oklch(1 0 0 / 3%)' }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{formatEther(payment.amount)} zkLTC</p>
+                      <p className="mt-1 font-mono text-xs text-white/55 break-all">{payment.payer}</p>
+                    </div>
+                    <p className="text-right text-xs text-white/45">
+                      {new Date(Number(payment.paidAt) * 1000).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* QR code */}
         {pageUrl && (

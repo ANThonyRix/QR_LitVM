@@ -156,6 +156,27 @@ describe('PaymentRequest', function () {
         contract.connect(alice).createRequestFor(bob.address, 1n, label),
       ).to.be.revertedWith('Label too long')
     })
+
+    it('configures a custom payout address for requests that may need queued settlement', async function () {
+      const { contract, alice, bob } = await deploy()
+
+      const tx = await contract
+        .connect(alice)
+        .createRequestForWithPayout(bob.address, 1n, 'with payout', alice.address)
+      const requestId = await getRequestId(contract, tx)
+
+      expect(await contract.requestPayoutAddresses(requestId)).to.equal(alice.address)
+    })
+
+    it('reverts when payout address is zero', async function () {
+      const { contract, alice, bob } = await deploy()
+
+      await expect(
+        contract
+          .connect(alice)
+          .createRequestForWithPayout(bob.address, 1n, 'broken payout', ethers.ZeroAddress),
+      ).to.be.revertedWith('Zero payout')
+    })
   })
 
   describe('pay', function () {
@@ -243,6 +264,31 @@ describe('PaymentRequest', function () {
       const after = await ethers.provider.getBalance(bob.address)
       expect(after - before).to.equal(amount)
       expect(await contract.pendingWithdrawals(receiverAddress)).to.equal(0n)
+    })
+
+    it('lets anyone release queued proceeds to a predefined payout address', async function () {
+      const { contract, rejectingReceiver, owner, alice, bob } = await deploy()
+      const amount = ethers.parseEther('0.08')
+      const receiverAddress = await rejectingReceiver.getAddress()
+
+      const tx = await contract
+        .connect(owner)
+        .createRequestForWithPayout(receiverAddress, amount, 'release to bob', bob.address)
+      const requestId = await getRequestId(contract, tx)
+
+      await expect(contract.connect(alice).pay(requestId, { value: amount }))
+        .to.emit(contract, 'ProceedsQueued')
+        .withArgs(bob.address, amount)
+
+      const before = await ethers.provider.getBalance(bob.address)
+
+      await expect(contract.connect(alice).releaseQueuedProceeds(bob.address))
+        .to.emit(contract, 'ProceedsWithdrawn')
+        .withArgs(bob.address, bob.address, amount)
+
+      const after = await ethers.provider.getBalance(bob.address)
+      expect(after - before).to.equal(amount)
+      expect(await contract.pendingWithdrawals(bob.address)).to.equal(0n)
     })
 
     it('lets an EOA recipient withdraw only when some proceeds were queued', async function () {
@@ -371,6 +417,18 @@ describe('PaymentRequest', function () {
       expect(req.totalPaid).to.equal(firstAmount + secondAmount)
       expect(req.payer).to.equal(bob.address)
       expect(req.paid).to.equal(true)
+
+      expect(await contract.getPaymentCount(requestId)).to.equal(2n)
+
+      const firstPayment = await contract.getPayment(requestId, 0n)
+      const secondPayment = await contract.getPayment(requestId, 1n)
+
+      expect(firstPayment.payer).to.equal(alice.address)
+      expect(firstPayment.amount).to.equal(firstAmount)
+      expect(firstPayment.paidAt).to.be.greaterThan(0n)
+      expect(secondPayment.payer).to.equal(bob.address)
+      expect(secondPayment.amount).to.equal(secondAmount)
+      expect(secondPayment.paidAt).to.be.greaterThanOrEqual(firstPayment.paidAt)
     })
 
     it('reusable fixed-amount request requires the same amount every time', async function () {
