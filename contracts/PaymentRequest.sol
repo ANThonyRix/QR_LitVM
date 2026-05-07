@@ -6,6 +6,7 @@ contract PaymentRequest {
     uint256 private constant _ENTERED = 2;
 
     struct Request {
+        address creator;
         address payable recipient;
         uint256 amount;
         string  label;
@@ -27,6 +28,7 @@ contract PaymentRequest {
 
     event RequestCreated(
         bytes32 indexed id,
+        address indexed creator,
         address indexed recipient,
         uint256 amount,
         string  label,
@@ -74,27 +76,48 @@ contract PaymentRequest {
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
-        return _createRequest(amount, label, false);
+        return _createRequest(msg.sender, amount, label, false);
     }
 
     function createReusableRequest(
         uint256 amount,
         string calldata label
     ) external returns (bytes32 id) {
-        return _createRequest(amount, label, true);
+        return _createRequest(msg.sender, amount, label, true);
+    }
+
+    function createRequestFor(
+        address recipient,
+        uint256 amount,
+        string calldata label
+    ) external returns (bytes32 id) {
+        return _createRequest(recipient, amount, label, false);
+    }
+
+    function createReusableRequestFor(
+        address recipient,
+        uint256 amount,
+        string calldata label
+    ) external returns (bytes32 id) {
+        return _createRequest(recipient, amount, label, true);
     }
 
     function _createRequest(
+        address recipient,
         uint256 amount,
         string calldata label,
         bool reusable
     ) internal returns (bytes32 id) {
+        require(recipient != address(0), "Zero recipient");
+
+        address creator = msg.sender;
         uint256 createdAt = block.timestamp;
         id = keccak256(
-            abi.encodePacked(msg.sender, amount, label, createdAt, reusable, block.prevrandao)
+            abi.encodePacked(creator, recipient, amount, label, createdAt, reusable, block.prevrandao)
         );
         requests[id] = Request({
-            recipient: payable(msg.sender),
+            creator: creator,
+            recipient: payable(recipient),
             amount:    amount,
             label:     label,
             createdAt: createdAt,
@@ -105,7 +128,7 @@ contract PaymentRequest {
             paymentCount: 0,
             totalPaid: 0
         });
-        emit RequestCreated(id, msg.sender, amount, label, createdAt, reusable);
+        emit RequestCreated(id, creator, recipient, amount, label, createdAt, reusable);
     }
 
     function pay(bytes32 id) external payable nonReentrant {

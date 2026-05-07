@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useAccount } from 'wagmi'
+import { CONTRACT_VERSION } from '@/lib/contract'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ONCHAIN_HISTORY_REFRESH_EVENT,
@@ -260,6 +261,7 @@ export function LinkHistory() {
                 title="Created links"
                 entries={createdEntries}
                 emptyText="No payment links created from this wallet yet."
+                counterpartyLabel={CONTRACT_VERSION === 'v4' ? 'Recipient' : undefined}
                 expandedSections={expandedSections}
                 onToggle={toggleSection}
               />

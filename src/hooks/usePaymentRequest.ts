@@ -1,8 +1,10 @@
 'use client'
+
 import { useReadContract } from 'wagmi'
 import { CONTRACT_ADDRESS, CONTRACT_ABI, CONTRACT_VERSION } from '@/lib/contract'
 
 export type PaymentRequest = {
+  creator: `0x${string}`
   recipient: `0x${string}`
   amount: bigint
   label: string
@@ -15,10 +17,23 @@ export type PaymentRequest = {
   totalPaid: bigint
 }
 
+type RawV4PaymentRequest =
+  readonly [`0x${string}`, `0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint, boolean, bigint, bigint]
+
+type RawV3PaymentRequest =
+  readonly [`0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint, boolean, bigint, bigint]
+
+type RawV2PaymentRequest =
+  readonly [`0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint]
+
+type RawV1PaymentRequest =
+  readonly [`0x${string}`, bigint, string, boolean, `0x${string}`, bigint]
+
 type RawPaymentRequest =
-  | readonly [`0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint, boolean, bigint, bigint]
-  | readonly [`0x${string}`, bigint, string, bigint, boolean, `0x${string}`, bigint]
-  | readonly [`0x${string}`, bigint, string, boolean, `0x${string}`, bigint]
+  | RawV4PaymentRequest
+  | RawV3PaymentRequest
+  | RawV2PaymentRequest
+  | RawV1PaymentRequest
   | PaymentRequest
   | undefined
 
@@ -34,44 +49,61 @@ export function usePaymentRequest(id: `0x${string}` | undefined) {
   const rawRequest = data as RawPaymentRequest
 
   const request: PaymentRequest | undefined = Array.isArray(rawRequest)
-    ? CONTRACT_VERSION === 'v3'
+    ? CONTRACT_VERSION === 'v4'
       ? {
-          recipient: rawRequest[0],
-          amount: rawRequest[1],
-          label: rawRequest[2],
-          createdAt: rawRequest[3] as bigint,
-          paid: rawRequest[4] as boolean,
-          payer: rawRequest[5] as `0x${string}`,
-          paidAt: rawRequest[6] as bigint,
-          reusable: rawRequest[7] as boolean,
-          paymentCount: rawRequest[8] as bigint,
-          totalPaid: rawRequest[9] as bigint,
+          creator: rawRequest[0] as `0x${string}`,
+          recipient: rawRequest[1] as `0x${string}`,
+          amount: rawRequest[2] as bigint,
+          label: rawRequest[3] as string,
+          createdAt: rawRequest[4] as bigint,
+          paid: rawRequest[5] as boolean,
+          payer: rawRequest[6] as `0x${string}`,
+          paidAt: rawRequest[7] as bigint,
+          reusable: rawRequest[8] as boolean,
+          paymentCount: rawRequest[9] as bigint,
+          totalPaid: rawRequest[10] as bigint,
         }
-      : CONTRACT_VERSION === 'v2'
+      : CONTRACT_VERSION === 'v3'
         ? {
-            recipient: rawRequest[0],
-            amount: rawRequest[1],
-            label: rawRequest[2],
+            creator: rawRequest[0] as `0x${string}`,
+            recipient: rawRequest[0] as `0x${string}`,
+            amount: rawRequest[1] as bigint,
+            label: rawRequest[2] as string,
             createdAt: rawRequest[3] as bigint,
             paid: rawRequest[4] as boolean,
             payer: rawRequest[5] as `0x${string}`,
             paidAt: rawRequest[6] as bigint,
-            reusable: false,
-            paymentCount: rawRequest[4] ? 1n : 0n,
-            totalPaid: 0n,
+            reusable: rawRequest[7] as boolean,
+            paymentCount: rawRequest[8] as bigint,
+            totalPaid: rawRequest[9] as bigint,
           }
-      : {
-          recipient: rawRequest[0],
-          amount: rawRequest[1],
-          label: rawRequest[2],
-          createdAt: 0n,
-          paid: rawRequest[3] as boolean,
-          payer: rawRequest[4] as `0x${string}`,
-          paidAt: rawRequest[5] as bigint,
-          reusable: false,
-          paymentCount: rawRequest[3] ? 1n : 0n,
-          totalPaid: 0n,
-        }
+        : CONTRACT_VERSION === 'v2'
+          ? {
+              creator: rawRequest[0] as `0x${string}`,
+              recipient: rawRequest[0] as `0x${string}`,
+              amount: rawRequest[1] as bigint,
+              label: rawRequest[2] as string,
+              createdAt: rawRequest[3] as bigint,
+              paid: rawRequest[4] as boolean,
+              payer: rawRequest[5] as `0x${string}`,
+              paidAt: rawRequest[6] as bigint,
+              reusable: false,
+              paymentCount: rawRequest[4] ? 1n : 0n,
+              totalPaid: 0n,
+            }
+          : {
+              creator: rawRequest[0] as `0x${string}`,
+              recipient: rawRequest[0] as `0x${string}`,
+              amount: rawRequest[1] as bigint,
+              label: rawRequest[2] as string,
+              createdAt: 0n,
+              paid: rawRequest[3] as boolean,
+              payer: rawRequest[4] as `0x${string}`,
+              paidAt: rawRequest[5] as bigint,
+              reusable: false,
+              paymentCount: rawRequest[3] ? 1n : 0n,
+              totalPaid: 0n,
+            }
     : (rawRequest as PaymentRequest | undefined)
 
   return { request, isLoading, error, refetch }

@@ -15,6 +15,11 @@ import { QRDisplay } from './QRDisplay'
 
 type LinkMode = 'one-time' | 'reusable'
 
+type PaymentGeneratorProps = {
+  recipientAddress?: `0x${string}`
+  recipientUsername?: string
+}
+
 const glassCard = {
   background: 'oklch(0.13 0.03 264 / 0.8)',
   border: '1px solid oklch(1 0 0 / 8%)',
@@ -22,9 +27,14 @@ const glassCard = {
   borderRadius: '16px',
 } as React.CSSProperties
 
-export function PaymentGenerator() {
+export function PaymentGenerator({
+  recipientAddress,
+  recipientUsername,
+}: PaymentGeneratorProps = {}) {
   const { isConnected } = useAccount()
-  const supportsReusableLinks = CONTRACT_VERSION === 'v3'
+  const supportsReusableLinks = CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4'
+  const createsForExternalRecipient = Boolean(recipientAddress) && CONTRACT_VERSION === 'v4'
+  const requiresV4RecipientFlow = Boolean(recipientAddress) && CONTRACT_VERSION !== 'v4'
 
   const [amount, setAmount] = useState('')
   const [label, setLabel] = useState('')
@@ -45,11 +55,11 @@ export function PaymentGenerator() {
   }, [requestId])
 
   const handleCreate = () => {
-    if (!label.trim()) {
+    if (!label.trim() || requiresV4RecipientFlow) {
       return
     }
 
-    create(amount, label, linkMode === 'reusable')
+    void create(amount, label, linkMode === 'reusable', recipientAddress)
   }
 
   const copyLink = async () => {
@@ -69,7 +79,6 @@ export function PaymentGenerator() {
   if (!isConnected) {
     return (
       <div style={glassCard} className="p-6 text-center">
-        <div className="mb-3 text-4xl">🔗</div>
         <p className="text-sm text-white/60">Connect your wallet to create a payment link</p>
       </div>
     )
@@ -86,10 +95,24 @@ export function PaymentGenerator() {
               border: '1px solid oklch(0.62 0.19 261 / 0.3)',
             }}
           >
-            ⚡
+            +
           </div>
-          <h2 className="font-semibold text-white">Create payment link</h2>
+          <h2 className="font-semibold text-white">
+            {createsForExternalRecipient
+              ? `Create payment link for ${recipientUsername ? `@${recipientUsername}` : 'this wallet'}`
+              : 'Create payment link'}
+          </h2>
         </div>
+
+        {recipientAddress && (
+          <div className="rounded-xl border border-white/8 px-3 py-3" style={{ background: 'oklch(1 0 0 / 3%)' }}>
+            <p className="text-xs uppercase tracking-wide text-white/40">Recipient</p>
+            <p className="mt-1 text-sm font-semibold text-white">
+              {recipientUsername ? `@${recipientUsername}` : 'Selected wallet'}
+            </p>
+            <p className="mt-1 break-all font-mono text-xs text-white/55">{recipientAddress}</p>
+          </div>
+        )}
 
         {supportsReusableLinks && (
           <div className="space-y-2">
@@ -126,7 +149,11 @@ export function PaymentGenerator() {
         <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wide text-white/70">Description *</Label>
           <Input
-            placeholder="Donation / Product / Service"
+            placeholder={
+              createsForExternalRecipient
+                ? 'Donation / Product / Service for this recipient'
+                : 'Donation / Product / Service'
+            }
             value={label}
             onChange={event => setLabel(event.target.value)}
             className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-blue-500/50"
@@ -156,18 +183,26 @@ export function PaymentGenerator() {
           className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
           onClick={handleCreate}
-          disabled={!label.trim() || isPending || isPreparingWallet || isConfirming}
+          disabled={!label.trim() || requiresV4RecipientFlow || isPending || isPreparingWallet || isConfirming}
         >
-          {isPreparingWallet
+          {requiresV4RecipientFlow
+            ? 'Deploy v4 to create links for this wallet'
+            : isPreparingWallet
             ? 'Checking wallet network...'
             : isPending
-            ? 'Confirm in wallet...'
-            : isConfirming
-              ? 'Waiting for blockchain...'
-              : linkMode === 'reusable'
-                ? 'Create reusable link'
-                : 'Create link'}
+              ? 'Confirm in wallet...'
+              : isConfirming
+                ? 'Waiting for blockchain...'
+                : linkMode === 'reusable'
+                  ? 'Create reusable link'
+                  : 'Create link'}
         </button>
+
+        {recipientAddress && CONTRACT_VERSION !== 'v4' && (
+          <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            This shortcut can create recipient payment links only after the app is switched to the v4 contract.
+          </p>
+        )}
 
         <WalletRpcRecoveryNotice error={error} />
 

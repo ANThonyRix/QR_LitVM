@@ -14,7 +14,7 @@ async function main() {
   console.log('')
   console.log('Next step - add to .env.local:')
   console.log(`NEXT_PUBLIC_CONTRACT_ADDRESS=${address}`)
-  console.log('NEXT_PUBLIC_CONTRACT_VERSION=v3')
+  console.log('NEXT_PUBLIC_CONTRACT_VERSION=v4')
   if (deploymentReceipt?.blockNumber !== undefined) {
     console.log(`NEXT_PUBLIC_CONTRACT_DEPLOYMENT_BLOCK=${deploymentReceipt.blockNumber}`)
   }

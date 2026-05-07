@@ -1,9 +1,11 @@
 'use client'
+
 import { use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useAddressForUsername } from '@/hooks/useUsername'
 import { WalletConnect } from '@/components/WalletConnect'
+import { PaymentGenerator } from '@/components/PaymentGenerator'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -26,10 +28,10 @@ export default function UserProfilePage({
 
   if (isLoading) {
     return (
-      <main className="min-h-screen flex items-center justify-center" style={bg}>
+      <main className="flex min-h-screen items-center justify-center" style={bg}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-          <p className="text-white/50 text-sm">Loading...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500/30 border-t-blue-500" />
+          <p className="text-sm text-white/50">Loading...</p>
         </div>
       </main>
     )
@@ -37,9 +39,8 @@ export default function UserProfilePage({
 
   if (!address || address === ZERO_ADDRESS) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4" style={bg}>
-        <div style={glassCard} className="max-w-sm w-full p-8 text-center">
-          <div className="text-4xl mb-3">🔍</div>
+      <main className="flex min-h-screen items-center justify-center px-4" style={bg}>
+        <div style={glassCard} className="w-full max-w-sm p-8 text-center">
           <p className="text-white/60">
             User <strong className="text-white">@{username}</strong> not found
           </p>
@@ -49,16 +50,18 @@ export default function UserProfilePage({
   }
 
   return (
-    <main className="min-h-screen relative overflow-hidden" style={bg}>
+    <main className="relative min-h-screen overflow-hidden" style={bg}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, oklch(0.55 0.2 274), transparent 70%)' }} />
+        <div
+          className="absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, oklch(0.55 0.2 274), transparent 70%)' }}
+        />
       </div>
 
-      <div className="relative max-w-xl mx-auto px-4 py-8 space-y-6">
+      <div className="relative mx-auto max-w-xl space-y-6 px-4 py-8">
         <header className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-            <div className="relative w-8 h-8 rounded-lg overflow-hidden ring-1 ring-white/10">
+            <div className="relative h-8 w-8 overflow-hidden rounded-lg ring-1 ring-white/10">
               <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
             </div>
             <span className="font-bold text-white">QR LitVM</span>
@@ -66,10 +69,12 @@ export default function UserProfilePage({
           <WalletConnect />
         </header>
 
-        <div style={glassCard} className="p-6 space-y-4">
+        <div style={glassCard} className="space-y-4 p-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}>
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-2xl text-2xl font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+            >
               {username[0].toUpperCase()}
             </div>
             <div>
@@ -80,17 +85,17 @@ export default function UserProfilePage({
             </div>
           </div>
 
-          <div className="rounded-xl p-3 border border-white/8" style={{ background: 'oklch(1 0 0 / 3%)' }}>
-            <p className="text-xs text-white/40 mb-1">Wallet address</p>
-            <p className="font-mono text-xs text-white/70 break-all">{address}</p>
+          <div className="rounded-xl border border-white/8 p-3" style={{ background: 'oklch(1 0 0 / 3%)' }}>
+            <p className="mb-1 text-xs text-white/40">Wallet address</p>
+            <p className="break-all font-mono text-xs text-white/70">{address}</p>
           </div>
 
-          <a href="/"
-            className="flex items-center justify-center w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all hover:scale-[1.02]"
-            style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}>
-            ⚡ Create payment link
-          </a>
+          <p className="text-sm text-white/55">
+            Create a payment link for this wallet directly from the username page.
+          </p>
         </div>
+
+        <PaymentGenerator recipientAddress={address} recipientUsername={username} />
       </div>
     </main>
   )
