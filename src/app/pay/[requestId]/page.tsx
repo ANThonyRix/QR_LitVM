@@ -24,7 +24,7 @@ export default function PayPage({
 }) {
   const { requestId } = use(params)
   const id = requestId as `0x${string}`
-  const { request, isLoading } = usePaymentRequest(id)
+  const { request, isLoading, error, refetch } = usePaymentRequest(id)
 
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -42,6 +42,27 @@ export default function PayPage({
   }
 
   if (!request?.recipient || request.recipient === ZERO_ADDRESS) {
+    if (error) {
+      return (
+        <main className="min-h-screen flex items-center justify-center px-4" style={bg}>
+          <div style={glassCard} className="max-w-sm w-full p-8 text-center space-y-4">
+            <div className="text-4xl">⚠️</div>
+            <div className="space-y-2">
+              <p className="text-white">Unable to load payment request</p>
+              <p className="text-sm text-white/55 break-words">{(error as Error).message}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-medium text-white/80 transition-all hover:bg-white/10"
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+      )
+    }
+
     return (
       <main className="min-h-screen flex items-center justify-center px-4" style={bg}>
         <div style={glassCard} className="max-w-sm w-full p-8 text-center">

@@ -3,21 +3,25 @@ import { PAYMENT_REQUEST_V1_ABI } from './PaymentRequestV1.abi'
 import { PAYMENT_REQUEST_V3_ABI } from './PaymentRequestV3.abi'
 
 export const DEFAULT_CONTRACT_ADDRESS =
-  '0x298c05FDECb261287873B17f5dACa53b3D5ed3c2' as const
+  '0xb146948808c8efBB44958E35E6d5bd1d36C8aF31' as const
 
-export const DEFAULT_CONTRACT_VERSION = 'v2' as const
+export const DEFAULT_CONTRACT_VERSION = 'v3' as const
 
-export const DEFAULT_CONTRACT_DEPLOYMENT_BLOCK = 5775085n
+export const DEFAULT_CONTRACT_DEPLOYMENT_BLOCK = 6067830n
+
+type ContractVersion = 'v1' | 'v2' | 'v3'
 
 export const CONTRACT_ADDRESS =
   (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? DEFAULT_CONTRACT_ADDRESS) as `0x${string}`
 
-export const CONTRACT_VERSION =
+export const CONTRACT_VERSION: ContractVersion =
   process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v1'
     ? 'v1'
-    : process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v3'
-      ? 'v3'
-      : DEFAULT_CONTRACT_VERSION
+    : process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v2'
+      ? 'v2'
+      : process.env.NEXT_PUBLIC_CONTRACT_VERSION === 'v3'
+        ? 'v3'
+        : DEFAULT_CONTRACT_VERSION
 
 export const CONTRACT_DEPLOYMENT_BLOCK = BigInt(
   process.env.NEXT_PUBLIC_CONTRACT_DEPLOYMENT_BLOCK ?? DEFAULT_CONTRACT_DEPLOYMENT_BLOCK,
