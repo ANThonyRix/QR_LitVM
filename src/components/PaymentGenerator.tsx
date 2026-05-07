@@ -38,7 +38,7 @@ export function PaymentGenerator({
     Boolean(recipientAddress) && (CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5')
   const requiresRecipientFlowUpgrade =
     Boolean(recipientAddress) && CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5'
-  const supportsCustomPayoutAddress = CONTRACT_VERSION === 'v5'
+  const supportsCustomPayoutAddress = false
 
   const [amount, setAmount] = useState('')
   const [label, setLabel] = useState('')
