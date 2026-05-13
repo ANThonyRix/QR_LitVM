@@ -1,7 +1,8 @@
 'use client'
-import { use } from 'react'
+import { use, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useAccount } from 'wagmi'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { useRequestPayments } from '@/hooks/useRequestPayments'
 import { WalletConnect } from '@/components/WalletConnect'
@@ -26,8 +27,14 @@ export default function PayPage({
 }) {
   const { requestId } = use(params)
   const id = requestId as `0x${string}`
+  const { address } = useAccount()
   const { request, isLoading, error, refetch } = usePaymentRequest(id)
   const { payments } = useRequestPayments(id, request?.paymentCount)
+  const [showPayments, setShowPayments] = useState(false)
+
+  const myPayments = address
+    ? payments.filter(p => p.payer.toLowerCase() === address.toLowerCase())
+    : []
 
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -149,32 +156,47 @@ export default function PayPage({
           )}
         </div>
 
-        {payments.length > 0 && (
+        {myPayments.length > 0 && (
           <div style={glassCard} className="p-6 space-y-3">
-            <div>
-              <p className="text-xs text-white/40 uppercase tracking-wide">Recent payments</p>
-              <p className="mt-1 text-sm text-white/60">Stored on-chain for this request.</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-white/40 uppercase tracking-wide">My payments</p>
+              <button
+                type="button"
+                onClick={() => setShowPayments(v => !v)}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {showPayments ? 'Hide' : `Show (${myPayments.length})`}
+              </button>
             </div>
 
-            <div className="space-y-2">
-              {payments.map((payment, index) => (
-                <div
-                  key={`${payment.payer}-${payment.paidAt.toString()}-${index}`}
-                  className="rounded-xl border border-white/8 px-3 py-3"
-                  style={{ background: 'oklch(1 0 0 / 3%)' }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{formatEther(payment.amount)} zkLTC</p>
-                      <p className="mt-1 font-mono text-xs text-white/55 break-all">{payment.payer}</p>
+            {showPayments && (
+              <div className="space-y-2">
+                {myPayments.map((payment, index) => (
+                  <div
+                    key={`${payment.payer}-${payment.paidAt.toString()}-${index}`}
+                    className="rounded-xl border border-white/8 px-3 py-3"
+                    style={{ background: 'oklch(1 0 0 / 3%)' }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white">{formatEther(payment.amount)} zkLTC</p>
+                        <a
+                          href={`https://liteforge.explorer.caldera.xyz/address/${payment.payer}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 block font-mono text-xs text-blue-400/70 hover:text-blue-400 break-all transition-colors"
+                        >
+                          {payment.payer}
+                        </a>
+                      </div>
+                      <p className="shrink-0 text-right text-xs text-white/45">
+                        {new Date(Number(payment.paidAt) * 1000).toLocaleString()}
+                      </p>
                     </div>
-                    <p className="text-right text-xs text-white/45">
-                      {new Date(Number(payment.paidAt) * 1000).toLocaleString()}
-                    </p>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
