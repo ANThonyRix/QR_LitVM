@@ -23,7 +23,7 @@ export default function Home() {
         <header className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <div className="relative w-10 h-10 rounded-xl overflow-hidden ring-1 ring-white/10 shadow-lg">
-              <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
+              <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority unoptimized />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white leading-none">Pay LitVM</h1>
