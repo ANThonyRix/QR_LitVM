@@ -50,11 +50,11 @@ export default function Home() {
         <LinkHistory />
 
         {/* Footer */}
-        <footer className="flex items-center justify-between pb-4 pt-2 gap-4 flex-wrap">
-          <p className="text-xs whitespace-nowrap" style={{ color: 'oklch(0.42 0.02 250)' }}>
+        <footer className="flex items-center justify-between pb-4 pt-2 gap-4">
+          <p className="text-xs whitespace-nowrap" style={{ color: 'oklch(0.58 0.03 250)' }}>
             ©2026 Pay LitVM · LitVM LiteForge Testnet
           </p>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <a href="https://liteforge.explorer.caldera.xyz" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-105"
               style={{ background: 'oklch(0.18 0.02 260)', color: 'oklch(0.7 0.1 261)', border: '1px solid oklch(0.25 0.03 260)' }}>
