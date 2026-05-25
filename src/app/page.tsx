@@ -27,7 +27,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white leading-none">Pay LitVM</h1>
-              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.58 0.03 250)' }}>Payment links in zkLTC</p>
+              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.58 0.03 250)' }}>Payment links in zkLTC & USDC</p>
             </div>
           </Link>
           <WalletConnect />
@@ -37,7 +37,7 @@ export default function Home() {
         <div className="text-center space-y-2 py-4">
           <h2 className="text-3xl font-bold"
             style={{ background: 'linear-gradient(135deg, #fff 30%, oklch(0.7 0.15 261))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            Accept payments in zkLTC
+            Accept payments in zkLTC & USDC
           </h2>
           <p className="text-sm max-w-sm mx-auto" style={{ color: 'oklch(0.58 0.03 250)' }}>
             Create a payment link and QR code - no intermediaries, directly on LitVM
