@@ -6,7 +6,7 @@ import { PAYMENT_REQUEST_V5_ABI } from './PaymentRequestV5.abi'
 import { PAYMENT_REQUEST_V6_ABI } from './PaymentRequestV6.abi'
 
 export const DEFAULT_CONTRACT_ADDRESS =
-  '0x99677E65b5147e700FF838Ddd1a30b7D2b313808' as const
+  '0xAbFD3a53a0CDAe98AEB7CBA9041a196217c823C4' as const
 
 export const DEFAULT_CONTRACT_VERSION = 'v6' as const
 
