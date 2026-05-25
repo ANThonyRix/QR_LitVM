@@ -146,7 +146,7 @@ export default function PayPage({
             <p className="text-xs font-mono text-white/60 break-all">{request.recipient}</p>
           </div>
 
-          {request.payoutAddress && request.payoutAddress !== request.recipient && (
+          {request.payoutAddress && request.payoutAddress !== request.recipient && request.payoutAddress !== ZERO_ADDRESS && (
             <div className="rounded-xl border border-amber-500/15 p-3"
               style={{ background: 'oklch(1 0 0 / 3%)' }}>
               <p className="text-xs text-amber-200/70 mb-0.5">Fallback payout address</p>
