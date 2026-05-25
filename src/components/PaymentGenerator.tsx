@@ -332,7 +332,7 @@ export function PaymentGenerator({
             </TabsContent>
 
             <TabsContent value="embed" className="pt-4">
-              {requestId && <EmbedCode requestId={requestId} />}
+              {requestId && <EmbedCode requestId={requestId} tokenSymbol={selectedToken.symbol} />}
             </TabsContent>
           </Tabs>
 

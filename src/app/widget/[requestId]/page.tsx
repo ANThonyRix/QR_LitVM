@@ -2,10 +2,11 @@
 
 import { use, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { formatEther } from 'viem'
+import { formatEther, formatUnits } from 'viem'
 import { PayButton } from '@/components/PayButton'
 import { WalletConnect } from '@/components/WalletConnect'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
+import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const WIDGET_RESIZE_MESSAGE = 'pay-litvm:widget-resize'
@@ -113,7 +114,11 @@ export default function WidgetPage({
   }
 
   const amount = request.amount ?? 0n
-  const amountDisplay = amount > 0n ? `${formatEther(amount)} zkLTC` : 'Any amount'
+  const token = getTokenByAddress(request.token ?? null)
+  const isNative = isNativeToken(request.token)
+  const amountDisplay = amount > 0n
+    ? `${isNative ? formatEther(amount) : formatUnits(amount, token.decimals)} ${token.symbol}`
+    : 'Any amount'
   const isClosed = !request.reusable && request.paid
 
   if (isClosed) {
@@ -215,6 +220,7 @@ export default function WidgetPage({
               fixedAmount={amount}
               isClosed={isClosed}
               reusable={request.reusable}
+              tokenAddress={request.token}
             />
           </div>
         </div>

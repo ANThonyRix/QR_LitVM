@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button'
 
 interface Props {
   requestId: string
+  tokenSymbol?: string
 }
 
-export function EmbedCode({ requestId }: Props) {
+export function EmbedCode({ requestId, tokenSymbol = 'zkLTC' }: Props) {
   const [copied, setCopied] = useState(false)
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://qrlitvm.app'
   const dropId = `plv-drop-${requestId.slice(2, 10)}`
@@ -27,7 +28,7 @@ export function EmbedCode({ requestId }: Props) {
 </style>
 <div id="${wrapId}" class="plv-wrap">
   <button class="plv-btn" onclick="document.getElementById('${dropId}').classList.toggle('open')">
-    💳 Pay with zkLTC
+    💳 Pay with ${tokenSymbol}
   </button>
   <div id="${dropId}" class="plv-dropdown">
     <div class="plv-iframe-wrap">
