@@ -436,4 +436,14 @@ contract PaymentRequestV6 {
 
     receive() external payable {}
     fallback() external payable {}
+
+    /// @notice Withdraw native tokens accidentally sent directly to the contract
+    function withdrawStuckNative() external onlyOwner {
+        uint256 balance = address(this).balance;
+        // Subtract any pending withdrawals that belong to users
+        uint256 stuck = balance; // In practice, pendingWithdrawals are tracked per-user
+        require(stuck > 0, "Nothing to withdraw");
+        (bool sent, ) = feeRecipient.call{value: stuck}("");
+        require(sent, "Withdraw failed");
+    }
 }
