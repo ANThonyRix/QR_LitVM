@@ -72,9 +72,7 @@ export function PaymentGenerator({
     }
 
     // Token requests require a fixed amount
-    if (selectedToken.address && !amount.trim()) {
-      return
-    }
+    // (removed — now USDC also supports flexible amounts)
 
     void create(
       amount,
@@ -214,7 +212,7 @@ export function PaymentGenerator({
           <Label className="text-xs uppercase tracking-wide text-white/70">Amount {selectedToken.symbol}</Label>
           <Input
             type="number"
-            placeholder={selectedToken.address ? `10.00 (required for ${selectedToken.symbol})` : '0.5 (leave empty for any amount)'}
+            placeholder={selectedToken.address ? '10.00 (leave empty for any amount)' : '0.5 (leave empty for any amount)'}
             value={amount}
             onChange={event => setAmount(event.target.value)}
             min="0"
@@ -222,11 +220,9 @@ export function PaymentGenerator({
             className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-blue-500/50"
           />
           <p className="text-xs text-white/40">
-            {selectedToken.address
-              ? `Token payments require a fixed amount in ${selectedToken.symbol}.`
-              : linkMode === 'reusable'
-                ? 'Reusable links can be used for open donations or repeated fixed-price payments.'
-                : 'Leave the amount empty to let the payer choose the payment value.'}
+            {linkMode === 'reusable'
+              ? 'Reusable links can be used for open donations or repeated fixed-price payments.'
+              : 'Leave the amount empty to let the payer choose the payment value.'}
           </p>
         </div>
 
@@ -255,7 +251,6 @@ export function PaymentGenerator({
           onClick={handleCreate}
           disabled={
             !label.trim() ||
-            (!!selectedToken.address && !amount.trim()) ||
             requiresRecipientFlowUpgrade ||
             hasInvalidPayoutAddress ||
             isPending ||

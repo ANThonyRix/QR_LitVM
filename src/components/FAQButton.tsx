@@ -83,7 +83,7 @@ export function FAQButton() {
                   </div>
                   <div className="rounded-lg p-3" style={{ background: 'oklch(1 0 0 / 3%)', border: '1px solid oklch(1 0 0 / 6%)' }}>
                     <p className="text-white/80 font-medium text-xs mb-0.5">USDC (ERC-20 stablecoin)</p>
-                    <p className="text-white/50 text-xs">USD-pegged stablecoin on LitVM. Fixed amount required. Payer approves the token transfer, then the contract moves funds to the recipient.</p>
+                    <p className="text-white/50 text-xs">USD-pegged stablecoin on LitVM. Supports both fixed and flexible amounts. Payer approves the token transfer, then the contract moves funds to the recipient.</p>
                   </div>
                 </div>
               </section>
@@ -161,6 +161,7 @@ export function FAQButton() {
                     <p className="font-semibold text-white/90 mb-1">4. Paying with USDC</p>
                     <ul className="space-y-0.5 text-white/60">
                       <li>• The payer needs USDC tokens in their wallet on LitVM</li>
+                      <li>• If the amount is flexible, the payer enters the desired amount</li>
                       <li>• First transaction: approve the contract to spend USDC</li>
                       <li>• Second transaction: the contract transfers USDC to the recipient</li>
                       <li>• Both steps are handled automatically with two wallet confirmations</li>

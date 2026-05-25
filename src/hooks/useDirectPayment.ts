@@ -157,7 +157,7 @@ export function useDirectPayment() {
           address: CONTRACT_ADDRESS,
           abi: PAYMENT_REQUEST_V6_ABI,
           functionName: 'payWithToken',
-          args: [createdRequestId],
+          args: [createdRequestId, parsedAmount],
         })
       } else {
         payHash = await writeContractAsync({

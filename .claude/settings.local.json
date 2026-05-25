@@ -4,7 +4,9 @@
       "Bash(gh api *)",
       "PowerShell($readme = Invoke-RestMethod -Uri \"https://api.github.com/repos/EvoMap/evolver/contents/README.md\" -Headers @{\"User-Agent\"=\"Mozilla/5.0\"}; [System.Text.Encoding]::UTF8.GetString\\([System.Convert]::FromBase64String\\($readme.content\\)\\))",
       "Bash(npm run *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

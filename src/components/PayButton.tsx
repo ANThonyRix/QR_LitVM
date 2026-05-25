@@ -54,14 +54,14 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAdd
           Payment confirmed. This reusable link can accept another payment.
         </p>
       )}
-      {fixedAmount === 0n && isNative && (
+      {fixedAmount === 0n && (
         <Input
           type="number"
           placeholder={`Enter ${token.symbol} amount`}
           value={customAmount}
           onChange={e => setCustomAmount(e.target.value)}
-          min="0.001"
-          step="0.001"
+          min={isNative ? '0.001' : '0.01'}
+          step={isNative ? '0.001' : '0.01'}
         />
       )}
       <Button

@@ -71,7 +71,7 @@ export function usePay() {
           address: CONTRACT_ADDRESS,
           abi: CONTRACT_ABI,
           functionName: 'payWithToken',
-          args: [requestId],
+          args: [requestId, amount],
         })
       }
     } catch (caughtError) {

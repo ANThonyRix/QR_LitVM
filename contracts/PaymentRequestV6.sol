@@ -200,14 +200,16 @@ contract PaymentRequestV6 {
     }
 
     /// @notice Pay an ERC-20 token request
-    function payWithToken(bytes32 id) external nonReentrant {
+    /// @param id The request ID
+    /// @param payAmount Amount to pay (used only when request has no fixed amount, i.e. amount == 0)
+    function payWithToken(bytes32 id, uint256 payAmount) external nonReentrant {
         Request storage req = requests[id];
         require(req.recipient != address(0), "Request does not exist");
         require(req.token != address(0), "Use pay for native requests");
         require(req.reusable || !req.paid, "Already paid");
-        require(req.amount > 0, "Token requests must have fixed amount");
 
-        uint256 amount = req.amount;
+        uint256 amount = req.amount > 0 ? req.amount : payAmount;
+        require(amount > 0, "Amount must be > 0");
 
         IERC20 token = IERC20(req.token);
         uint256 allowance = token.allowance(msg.sender, address(this));
@@ -301,9 +303,6 @@ contract PaymentRequestV6 {
 
     function _createRequest(address recipient, uint256 amount, string calldata label, bool reusable, address token) internal returns (bytes32 id) {
         require(recipient != address(0), "Recipient cannot be zero address");
-        if (token != address(0)) {
-            require(amount > 0, "Token requests must have fixed amount");
-        }
 
         id = keccak256(abi.encode(msg.sender, recipient, amount, label, block.timestamp, reusable, token));
         require(requests[id].recipient == address(0), "Request ID collision, retry");

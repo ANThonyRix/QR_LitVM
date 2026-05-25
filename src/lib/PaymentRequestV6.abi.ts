@@ -303,7 +303,10 @@ export const PAYMENT_REQUEST_V6_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'bytes32', name: 'id', type: 'bytes32' }],
+    inputs: [
+      { internalType: 'bytes32', name: 'id', type: 'bytes32' },
+      { internalType: 'uint256', name: 'payAmount', type: 'uint256' },
+    ],
     name: 'payWithToken',
     outputs: [],
     stateMutability: 'nonpayable',
