@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { CONTRACT_ADDRESS } from '@/lib/contract'
+import { USDC_ADDRESS } from '@/lib/tokens'
 
 export function FAQButton() {
   const [open, setOpen] = useState(false)
@@ -62,7 +63,8 @@ export function FAQButton() {
               <section>
                 <p className="text-white/90">
                   <strong className="text-white">Pay LitVM</strong> - DApp (decentralized application) for receiving crypto payments in{' '}
-                  <strong className="text-blue-400">zkLTC</strong> (native token of the LitVM network).
+                  <strong className="text-blue-400">zkLTC</strong> (native token of the LitVM network) and{' '}
+                  <strong className="text-green-400">USDC</strong> (ERC-20 stablecoin).
                   Lets anyone create a payment link or QR code and receive payment directly to their wallet -
                   no intermediaries, no registration, no payment processor fees.
                 </p>
@@ -70,6 +72,20 @@ export function FAQButton() {
                   <strong className="text-white">LitVM</strong> - EVM-compatible ZK-rollup on Litecoin. Fast transactions
                   with low gas, secured by the Litecoin network.
                 </p>
+              </section>
+
+              <section>
+                <h3 className="font-bold text-white mb-2">💰 Supported tokens</h3>
+                <div className="space-y-2">
+                  <div className="rounded-lg p-3" style={{ background: 'oklch(1 0 0 / 3%)', border: '1px solid oklch(1 0 0 / 6%)' }}>
+                    <p className="text-white/80 font-medium text-xs mb-0.5">zkLTC (native)</p>
+                    <p className="text-white/50 text-xs">Native token of the LitVM network. Used for gas fees and payments. Flexible amount - payer can choose how much to send.</p>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: 'oklch(1 0 0 / 3%)', border: '1px solid oklch(1 0 0 / 6%)' }}>
+                    <p className="text-white/80 font-medium text-xs mb-0.5">USDC (ERC-20 stablecoin)</p>
+                    <p className="text-white/50 text-xs">USD-pegged stablecoin on LitVM. Fixed amount required. Payer approves the token transfer, then the contract moves funds to the recipient.</p>
+                  </div>
+                </div>
               </section>
 
               <section>
@@ -117,8 +133,9 @@ export function FAQButton() {
                   <div>
                     <p className="font-semibold text-white/90 mb-1">2. Create a payment link</p>
                     <ul className="space-y-0.5 text-white/60">
+                      <li>• Select the token: zkLTC or USDC</li>
                       <li>• Enter what is being paid for: "Logo design", "T-shirt XL", "Donation"</li>
-                      <li>• Enter the amount in zkLTC - or leave empty (payer will enter it)</li>
+                      <li>• Enter the amount (required for USDC, optional for zkLTC)</li>
                       <li>• Click "Create link" and confirm in MetaMask</li>
                       <li>• Wait for blockchain confirmation (a few seconds)</li>
                     </ul>
@@ -130,7 +147,7 @@ export function FAQButton() {
                       {[
                         ['📱 QR Code', 'Styled QR with logo. Download as SVG (for print) or PNG (for messengers). Show the client - they scan and pay.'],
                         ['🔗 Link', 'Copy and send via Telegram, email, Discord. The client opens it, connects their wallet and pays with one click.'],
-                        ['🖼️ Widget (iframe)', 'Embed code on your site - a "Pay zkLTC" button appears. Clients pay without leaving the page.'],
+                        ['🖼️ Widget (iframe)', 'Embed code on your site - a "Pay" button appears. Clients pay without leaving the page.'],
                       ].map(([title, desc]) => (
                         <div key={title} className="rounded-lg p-3" style={{ background: 'oklch(1 0 0 / 3%)', border: '1px solid oklch(1 0 0 / 6%)' }}>
                           <p className="text-white/80 font-medium text-xs mb-0.5">{title}</p>
@@ -141,7 +158,17 @@ export function FAQButton() {
                   </div>
 
                   <div>
-                    <p className="font-semibold text-white/90 mb-1">4. Short link /u/username</p>
+                    <p className="font-semibold text-white/90 mb-1">4. Paying with USDC</p>
+                    <ul className="space-y-0.5 text-white/60">
+                      <li>• The payer needs USDC tokens in their wallet on LitVM</li>
+                      <li>• First transaction: approve the contract to spend USDC</li>
+                      <li>• Second transaction: the contract transfers USDC to the recipient</li>
+                      <li>• Both steps are handled automatically with two wallet confirmations</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-white/90 mb-1">5. Short link /u/username</p>
                     <p className="text-white/60 mb-1">Register a username (3-32 chars, a-z 0-9 _) - one-time, on-chain. You will get a permanent link:</p>
                     <code className="text-blue-300 text-xs px-2 py-1 rounded" style={{ background: 'oklch(0.62 0.19 261 / 0.1)' }}>
                       https://qrlitvm.app/u/alice
@@ -150,8 +177,8 @@ export function FAQButton() {
                   </div>
 
                   <div>
-                    <p className="font-semibold text-white/90 mb-1">5. Payment page (for the payer)</p>
-                    <p className="text-white/60">The payer sees the description, amount, status and pay button. After payment, status updates to "Paid" automatically.</p>
+                    <p className="font-semibold text-white/90 mb-1">6. Payment page (for the payer)</p>
+                    <p className="text-white/60">The payer sees the description, amount, token type, status and pay button. After payment, status updates to "Paid" automatically.</p>
                   </div>
                 </div>
               </section>
@@ -162,7 +189,7 @@ export function FAQButton() {
                   {[
                     ['Vs bank transfer', ['No 1-3 day wait', 'No bank fee (5-7%)', 'No personal data required', 'Works 24/7']],
                     ['Vs PayPal / Stripe', ['No verification required', 'No funds freeze', 'Funds go directly to wallet', 'Any country']],
-                    ['Vs other crypto', ['On-chain requests', 'Real-time paid/pending status', 'Reentrancy protection', 'No backend']],
+                    ['Vs other crypto', ['On-chain requests', 'Multi-token (zkLTC + USDC)', 'Reentrancy protection', 'No backend']],
                   ].map(([title, items]) => (
                     <div key={title as string} className="rounded-xl p-3" style={{ background: 'oklch(0.62 0.19 261 / 0.07)', border: '1px solid oklch(0.62 0.19 261 / 0.15)' }}>
                       <p className="text-blue-300 font-semibold text-xs mb-2">{title as string}</p>
@@ -181,6 +208,7 @@ export function FAQButton() {
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid oklch(1 0 0 / 8%)' }}>
                   {[
                     ['Contract', CONTRACT_ADDRESS, `https://liteforge.explorer.caldera.xyz/address/${CONTRACT_ADDRESS}`],
+                    ['USDC Token', USDC_ADDRESS, `https://liteforge.explorer.caldera.xyz/address/${USDC_ADDRESS}`],
                     ['Explorer', 'liteforge.explorer.caldera.xyz', 'https://liteforge.explorer.caldera.xyz'],
                     ['Faucet (zkLTC)', 'liteforge.hub.caldera.xyz', 'https://liteforge.hub.caldera.xyz'],
                   ].map(([label, value, href], i) => (

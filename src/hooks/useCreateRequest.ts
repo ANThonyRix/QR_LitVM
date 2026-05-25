@@ -6,7 +6,9 @@ import { ensureHealthyLitvmWalletRpc } from '@/lib/litvmNetwork'
 import { PAYMENT_REQUEST_V3_ABI } from '@/lib/PaymentRequestV3.abi'
 import { PAYMENT_REQUEST_V4_ABI } from '@/lib/PaymentRequestV4.abi'
 import { PAYMENT_REQUEST_V5_ABI } from '@/lib/PaymentRequestV5.abi'
-import { decodeEventLog, parseEther } from 'viem'
+import { PAYMENT_REQUEST_V6_ABI } from '@/lib/PaymentRequestV6.abi'
+import { isNativeToken } from '@/lib/tokens'
+import { decodeEventLog, parseEther, parseUnits } from 'viem'
 
 export function useCreateRequest() {
   const [localError, setLocalError] = useState<Error | null>(null)
@@ -14,24 +16,55 @@ export function useCreateRequest() {
   const { writeContractAsync, data: hash, isPending, error } = useWriteContract()
 
   async function create(
-    amountEth: string,
+    amountRaw: string,
     label: string,
     reusable: boolean,
     recipientAddress?: `0x${string}`,
     payoutAddress?: `0x${string}`,
+    tokenAddress?: `0x${string}` | null,
+    tokenDecimals?: number,
   ) {
-    const amount = amountEth ? parseEther(amountEth) : 0n
     setLocalError(null)
     setIsPreparingWallet(true)
 
     try {
       await ensureHealthyLitvmWalletRpc()
 
-      if (recipientAddress && (CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5')) {
-        if (CONTRACT_VERSION === 'v5' && payoutAddress) {
+      const isToken = !isNativeToken(tokenAddress)
+      const amount = amountRaw
+        ? isToken
+          ? parseUnits(amountRaw, tokenDecimals ?? 6)
+          : parseEther(amountRaw)
+        : 0n
+
+      // ─── V6 Token requests ────────────────────────────────────────────
+      if (isToken && CONTRACT_VERSION === 'v6') {
+        if (recipientAddress) {
+          const fnName = reusable ? 'createReusableTokenRequestFor' : 'createTokenRequestFor'
           await writeContractAsync({
             address: CONTRACT_ADDRESS,
-            abi: PAYMENT_REQUEST_V5_ABI,
+            abi: PAYMENT_REQUEST_V6_ABI,
+            functionName: fnName,
+            args: [recipientAddress, tokenAddress!, amount, label],
+          })
+        } else {
+          const fnName = reusable ? 'createReusableTokenRequest' : 'createTokenRequest'
+          await writeContractAsync({
+            address: CONTRACT_ADDRESS,
+            abi: PAYMENT_REQUEST_V6_ABI,
+            functionName: fnName,
+            args: [tokenAddress!, amount, label],
+          })
+        }
+        return
+      }
+
+      // ─── Native zkLTC requests (existing logic) ───────────────────────
+      if (recipientAddress && (CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6')) {
+        if ((CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') && payoutAddress) {
+          await writeContractAsync({
+            address: CONTRACT_ADDRESS,
+            abi: CONTRACT_VERSION === 'v6' ? PAYMENT_REQUEST_V6_ABI : PAYMENT_REQUEST_V5_ABI,
             functionName: reusable ? 'createReusableRequestForWithPayout' : 'createRequestForWithPayout',
             args: [recipientAddress, amount, label, payoutAddress],
           })
@@ -40,32 +73,38 @@ export function useCreateRequest() {
 
         await writeContractAsync({
           address: CONTRACT_ADDRESS,
-          abi: PAYMENT_REQUEST_V4_ABI,
+          abi: CONTRACT_VERSION === 'v6'
+            ? PAYMENT_REQUEST_V6_ABI
+            : CONTRACT_VERSION === 'v5'
+              ? PAYMENT_REQUEST_V5_ABI
+              : PAYMENT_REQUEST_V4_ABI,
           functionName: reusable ? 'createReusableRequestFor' : 'createRequestFor',
           args: [recipientAddress, amount, label],
         })
         return
       }
 
-      if (CONTRACT_VERSION === 'v5' && payoutAddress) {
+      if ((CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') && payoutAddress) {
         await writeContractAsync({
           address: CONTRACT_ADDRESS,
-          abi: PAYMENT_REQUEST_V5_ABI,
+          abi: CONTRACT_VERSION === 'v6' ? PAYMENT_REQUEST_V6_ABI : PAYMENT_REQUEST_V5_ABI,
           functionName: reusable ? 'createReusableRequestWithPayout' : 'createRequestWithPayout',
           args: [amount, label, payoutAddress],
         })
         return
       }
 
-      if (reusable && (CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5')) {
+      if (reusable && (CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6')) {
         await writeContractAsync({
           address: CONTRACT_ADDRESS,
           abi:
-            CONTRACT_VERSION === 'v5'
-              ? PAYMENT_REQUEST_V5_ABI
-              : CONTRACT_VERSION === 'v4'
-                ? PAYMENT_REQUEST_V4_ABI
-                : PAYMENT_REQUEST_V3_ABI,
+            CONTRACT_VERSION === 'v6'
+              ? PAYMENT_REQUEST_V6_ABI
+              : CONTRACT_VERSION === 'v5'
+                ? PAYMENT_REQUEST_V5_ABI
+                : CONTRACT_VERSION === 'v4'
+                  ? PAYMENT_REQUEST_V4_ABI
+                  : PAYMENT_REQUEST_V3_ABI,
           functionName: 'createReusableRequest',
           args: [amount, label],
         })
@@ -93,11 +132,13 @@ export function useCreateRequest() {
       try {
         const decoded = decodeEventLog({
           abi:
-            CONTRACT_VERSION === 'v5'
-              ? PAYMENT_REQUEST_V5_ABI
-              : CONTRACT_VERSION === 'v4'
-                ? PAYMENT_REQUEST_V4_ABI
-                : CONTRACT_ABI,
+            CONTRACT_VERSION === 'v6'
+              ? PAYMENT_REQUEST_V6_ABI
+              : CONTRACT_VERSION === 'v5'
+                ? PAYMENT_REQUEST_V5_ABI
+                : CONTRACT_VERSION === 'v4'
+                  ? PAYMENT_REQUEST_V4_ABI
+                  : CONTRACT_ABI,
           data: log.data,
           topics: log.topics,
         })

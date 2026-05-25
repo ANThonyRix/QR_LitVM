@@ -3,22 +3,27 @@ import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { usePay } from '@/hooks/usePay'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
+import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { WalletRpcRecoveryNotice } from '@/components/WalletRpcRecoveryNotice'
-import { formatEther } from 'viem'
+import { formatEther, formatUnits } from 'viem'
 
 interface Props {
   requestId: `0x${string}`
   fixedAmount: bigint
   isClosed: boolean
   reusable: boolean
+  tokenAddress?: `0x${string}` | null
 }
 
-export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props) {
+export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAddress }: Props) {
   const { isConnected } = useAccount()
-  const { pay, isPending, isPreparingWallet, isConfirming, isSuccess, error } = usePay()
+  const { pay, isPending, isPreparingWallet, isApproving, isConfirming, isSuccess, error } = usePay()
   const [customAmount, setCustomAmount] = useState('')
+
+  const token = getTokenByAddress(tokenAddress ?? null)
+  const isNative = isNativeToken(tokenAddress)
 
   useEffect(() => {
     if (reusable && isSuccess && fixedAmount === 0n) {
@@ -34,7 +39,13 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props)
     return <p className="text-sm text-muted-foreground">Connect wallet to pay</p>
   }
 
-  const amount = fixedAmount > 0n ? formatEther(fixedAmount) : customAmount
+  const formattedAmount = fixedAmount > 0n
+    ? isNative
+      ? formatEther(fixedAmount)
+      : formatUnits(fixedAmount, token.decimals)
+    : customAmount
+
+  const amount = formattedAmount
 
   return (
     <div className="space-y-3">
@@ -43,10 +54,10 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props)
           Payment confirmed. This reusable link can accept another payment.
         </p>
       )}
-      {fixedAmount === 0n && (
+      {fixedAmount === 0n && isNative && (
         <Input
           type="number"
-          placeholder="Enter zkLTC amount"
+          placeholder={`Enter ${token.symbol} amount`}
           value={customAmount}
           onChange={e => setCustomAmount(e.target.value)}
           min="0.001"
@@ -56,13 +67,14 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable }: Props)
       <Button
         className="w-full"
         size="lg"
-        disabled={!amount || isPending || isPreparingWallet || isConfirming}
-        onClick={() => void pay(requestId, amount)}
+        disabled={!amount || isPending || isPreparingWallet || isApproving || isConfirming}
+        onClick={() => void pay(requestId, amount, tokenAddress, token.decimals)}
       >
         {isPreparingWallet ? 'Checking wallet network...' :
+         isApproving ? `Approving ${token.symbol}...` :
          isPending ? 'Confirm in wallet...' :
          isConfirming ? 'Processing...' :
-         `Pay ${amount} zkLTC`}
+         `Pay ${amount} ${token.symbol}`}
       </Button>
       <WalletRpcRecoveryNotice error={error} />
       {error && !isBandwidthLimitError(error) && (

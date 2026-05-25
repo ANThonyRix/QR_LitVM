@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { useAccount } from 'wagmi'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { useRequestPayments } from '@/hooks/useRequestPayments'
+import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
 import { WalletConnect } from '@/components/WalletConnect'
 import { PayButton } from '@/components/PayButton'
 import { PaymentStatus } from '@/components/PaymentStatus'
 import { QRDisplay } from '@/components/QRDisplay'
-import { formatEther } from 'viem'
+import { formatEther, formatUnits } from 'viem'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -83,8 +84,12 @@ export default function PayPage({
     )
   }
 
+  const token = getTokenByAddress(request.token)
+  const isNative = isNativeToken(request.token)
   const amount = request.amount ?? 0n
-  const amountDisplay = amount > 0n ? `${formatEther(amount)} zkLTC` : 'Any amount'
+  const amountDisplay = amount > 0n
+    ? `${isNative ? formatEther(amount) : formatUnits(amount, token.decimals)} ${token.symbol}`
+    : 'Any amount'
   const isClosed = !request.reusable && request.paid
 
   return (
@@ -102,7 +107,7 @@ export default function PayPage({
         <header className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
             <div className="relative w-8 h-8 rounded-lg overflow-hidden ring-1 ring-white/10">
-              <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority />
+              <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority unoptimized />
             </div>
             <span className="font-bold text-white text-lg">Pay LitVM</span>
           </Link>
@@ -122,6 +127,9 @@ export default function PayPage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-3xl font-bold text-white">{amountDisplay}</p>
+              {!isNative && (
+                <p className="text-xs text-white/40 mt-1">ERC-20 token payment</p>
+              )}
             </div>
             <PaymentStatus
               paid={request.paid}
@@ -152,6 +160,7 @@ export default function PayPage({
               fixedAmount={amount}
               isClosed={isClosed}
               reusable={request.reusable}
+              tokenAddress={request.token}
             />
           )}
         </div>
@@ -179,7 +188,9 @@ export default function PayPage({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white">{formatEther(payment.amount)} zkLTC</p>
+                        <p className="text-sm font-semibold text-white">
+                          {isNative ? formatEther(payment.amount) : formatUnits(payment.amount, token.decimals)} {token.symbol}
+                        </p>
                         <a
                           href={`https://liteforge.explorer.caldera.xyz/address/${payment.payer}`}
                           target="_blank"

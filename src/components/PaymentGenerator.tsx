@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { CONTRACT_VERSION } from '@/lib/contract'
+import { TOKENS, type TokenConfig } from '@/lib/tokens'
 import { useCreateRequest } from '@/hooks/useCreateRequest'
 import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
@@ -33,11 +34,12 @@ export function PaymentGenerator({
   recipientUsername,
 }: PaymentGeneratorProps = {}) {
   const { isConnected } = useAccount()
-  const supportsReusableLinks = CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+  const supportsReusableLinks = CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
+  const supportsTokens = CONTRACT_VERSION === 'v6'
   const createsForExternalRecipient =
-    Boolean(recipientAddress) && (CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5')
+    Boolean(recipientAddress) && (CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6')
   const requiresRecipientFlowUpgrade =
-    Boolean(recipientAddress) && CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5'
+    Boolean(recipientAddress) && CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5' && CONTRACT_VERSION !== 'v6'
   const supportsCustomPayoutAddress = false
 
   const [amount, setAmount] = useState('')
@@ -46,6 +48,7 @@ export function PaymentGenerator({
   const [payUrl, setPayUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [linkMode, setLinkMode] = useState<LinkMode>('one-time')
+  const [selectedToken, setSelectedToken] = useState<TokenConfig>(TOKENS[0])
 
   const { create, isPending, isPreparingWallet, isConfirming, requestId, error } = useCreateRequest()
 
@@ -68,12 +71,19 @@ export function PaymentGenerator({
       return
     }
 
+    // Token requests require a fixed amount
+    if (selectedToken.address && !amount.trim()) {
+      return
+    }
+
     void create(
       amount,
       label,
       linkMode === 'reusable',
       recipientAddress,
       hasCustomPayoutAddress ? (trimmedPayoutAddress as `0x${string}`) : undefined,
+      selectedToken.address,
+      selectedToken.decimals,
     )
   }
 
@@ -90,6 +100,7 @@ export function PaymentGenerator({
     setPayUrl('')
     setCopied(false)
     setLinkMode('one-time')
+    setSelectedToken(TOKENS[0])
   }
 
   if (!isConnected) {
@@ -162,6 +173,29 @@ export function PaymentGenerator({
           </div>
         )}
 
+        {supportsTokens && (
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-white/70">Token</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {TOKENS.map(token => (
+                <button
+                  key={token.symbol}
+                  type="button"
+                  onClick={() => setSelectedToken(token)}
+                  className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                    selectedToken.symbol === token.symbol
+                      ? 'border-blue-400/40 bg-blue-500/15 text-white'
+                      : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/8'
+                  }`}
+                >
+                  <p className="text-sm font-semibold">{token.symbol}</p>
+                  <p className="mt-1 text-xs text-white/50">{token.name}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wide text-white/70">Description *</Label>
           <Input
@@ -177,20 +211,22 @@ export function PaymentGenerator({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs uppercase tracking-wide text-white/70">Amount zkLTC</Label>
+          <Label className="text-xs uppercase tracking-wide text-white/70">Amount {selectedToken.symbol}</Label>
           <Input
             type="number"
-            placeholder="0.5 (leave empty for any amount)"
+            placeholder={selectedToken.address ? `10.00 (required for ${selectedToken.symbol})` : '0.5 (leave empty for any amount)'}
             value={amount}
             onChange={event => setAmount(event.target.value)}
             min="0"
-            step="0.001"
+            step={selectedToken.address ? '0.01' : '0.001'}
             className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-blue-500/50"
           />
           <p className="text-xs text-white/40">
-            {linkMode === 'reusable'
-              ? 'Reusable links can be used for open donations or repeated fixed-price payments.'
-              : 'Leave the amount empty to let the payer choose the payment value.'}
+            {selectedToken.address
+              ? `Token payments require a fixed amount in ${selectedToken.symbol}.`
+              : linkMode === 'reusable'
+                ? 'Reusable links can be used for open donations or repeated fixed-price payments.'
+                : 'Leave the amount empty to let the payer choose the payment value.'}
           </p>
         </div>
 
@@ -219,6 +255,7 @@ export function PaymentGenerator({
           onClick={handleCreate}
           disabled={
             !label.trim() ||
+            (!!selectedToken.address && !amount.trim()) ||
             requiresRecipientFlowUpgrade ||
             hasInvalidPayoutAddress ||
             isPending ||
@@ -227,7 +264,7 @@ export function PaymentGenerator({
           }
         >
           {requiresRecipientFlowUpgrade
-            ? 'Deploy v5 to create links for this wallet'
+            ? 'Deploy v6 to create links for this wallet'
             : isPreparingWallet
             ? 'Checking wallet network...'
             : isPending
@@ -235,13 +272,13 @@ export function PaymentGenerator({
               : isConfirming
                 ? 'Waiting for blockchain...'
                 : linkMode === 'reusable'
-                  ? 'Create reusable link'
-                  : 'Create link'}
+                  ? `Create reusable ${selectedToken.symbol} link`
+                  : `Create ${selectedToken.symbol} link`}
         </button>
 
         {recipientAddress && requiresRecipientFlowUpgrade && (
           <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-            This shortcut can create recipient payment links only after the app is switched to the v5 contract.
+            This shortcut can create recipient payment links only after the app is switched to the v6 contract.
           </p>
         )}
 

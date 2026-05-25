@@ -1,25 +1,31 @@
 'use client'
 
 import { useState } from 'react'
-import { usePublicClient, useWriteContract } from 'wagmi'
-import { decodeEventLog, parseEther } from 'viem'
+import { useAccount, usePublicClient, useWriteContract } from 'wagmi'
+import { decodeEventLog, parseEther, parseUnits } from 'viem'
 import { CONTRACT_ADDRESS, CONTRACT_VERSION } from '@/lib/contract'
+import { ERC20_ABI } from '@/lib/erc20.abi'
+import { isNativeToken } from '@/lib/tokens'
 import { ensureHealthyLitvmWalletRpc } from '@/lib/litvmNetwork'
 import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
 import { PAYMENT_REQUEST_V4_ABI } from '@/lib/PaymentRequestV4.abi'
 import { PAYMENT_REQUEST_V5_ABI } from '@/lib/PaymentRequestV5.abi'
+import { PAYMENT_REQUEST_V6_ABI } from '@/lib/PaymentRequestV6.abi'
 
 type DirectPaymentStatus =
   | 'idle'
   | 'preparing_wallet'
   | 'confirm_create'
   | 'waiting_create'
+  | 'confirm_approve'
+  | 'waiting_approve'
   | 'confirm_payment'
   | 'waiting_payment'
   | 'success'
 
 export function useDirectPayment() {
   const publicClient = usePublicClient()
+  const { address } = useAccount()
   const { writeContractAsync } = useWriteContract()
 
   const [status, setStatus] = useState<DirectPaymentStatus>('idle')
@@ -30,46 +36,76 @@ export function useDirectPayment() {
     recipientAddress,
     amount,
     label,
+    tokenAddress,
+    tokenDecimals,
   }: {
     recipientAddress: `0x${string}`
     amount: string
     label: string
+    tokenAddress?: `0x${string}` | null
+    tokenDecimals?: number
   }) => {
-    if (CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5') {
-      setError(new Error('Direct username payments require the v4 or v5 contract.'))
+    if (CONTRACT_VERSION !== 'v4' && CONTRACT_VERSION !== 'v5' && CONTRACT_VERSION !== 'v6') {
+      setError(new Error('Direct username payments require the v4, v5, or v6 contract.'))
       return null
     }
 
-    if (!publicClient) {
-      setError(new Error('Public client is not available.'))
+    if (!publicClient || !address) {
+      setError(new Error('Public client or wallet is not available.'))
       return null
     }
 
     setError(null)
     setRequestId(null)
 
+    const isToken = !isNativeToken(tokenAddress)
+
     try {
       setStatus('preparing_wallet')
       await ensureHealthyLitvmWalletRpc()
 
-      const parsedAmount = parseEther(amount)
+      const parsedAmount = isToken
+        ? parseUnits(amount, tokenDecimals ?? 6)
+        : parseEther(amount)
 
+      // Create request
       setStatus('confirm_create')
-      const createHash = await writeContractAsync({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
-        functionName: 'createRequestFor',
-        args: [recipientAddress, parsedAmount, label],
-      })
+      let createHash: `0x${string}`
+
+      if (isToken && CONTRACT_VERSION === 'v6') {
+        createHash = await writeContractAsync({
+          address: CONTRACT_ADDRESS,
+          abi: PAYMENT_REQUEST_V6_ABI,
+          functionName: 'createTokenRequestFor',
+          args: [recipientAddress, tokenAddress!, parsedAmount, label],
+        })
+      } else {
+        createHash = await writeContractAsync({
+          address: CONTRACT_ADDRESS,
+          abi: CONTRACT_VERSION === 'v6'
+            ? PAYMENT_REQUEST_V6_ABI
+            : CONTRACT_VERSION === 'v5'
+              ? PAYMENT_REQUEST_V5_ABI
+              : PAYMENT_REQUEST_V4_ABI,
+          functionName: 'createRequestFor',
+          args: [recipientAddress, parsedAmount, label],
+        })
+      }
 
       setStatus('waiting_create')
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash })
+
+      const abi = CONTRACT_VERSION === 'v6'
+        ? PAYMENT_REQUEST_V6_ABI
+        : CONTRACT_VERSION === 'v5'
+          ? PAYMENT_REQUEST_V5_ABI
+          : PAYMENT_REQUEST_V4_ABI
 
       const createdRequestId = createReceipt.logs
         .map(log => {
           try {
             const decoded = decodeEventLog({
-              abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
+              abi,
               data: log.data,
               topics: log.topics,
             })
@@ -89,14 +125,49 @@ export function useDirectPayment() {
 
       setRequestId(createdRequestId)
 
+      // Approve token if needed
+      if (isToken) {
+        const allowance = await publicClient.readContract({
+          address: tokenAddress!,
+          abi: ERC20_ABI,
+          functionName: 'allowance',
+          args: [address, CONTRACT_ADDRESS],
+        })
+
+        if ((allowance as bigint) < parsedAmount) {
+          setStatus('confirm_approve')
+          const approveHash = await writeContractAsync({
+            address: tokenAddress!,
+            abi: ERC20_ABI,
+            functionName: 'approve',
+            args: [CONTRACT_ADDRESS, parsedAmount],
+          })
+
+          setStatus('waiting_approve')
+          await publicClient.waitForTransactionReceipt({ hash: approveHash })
+        }
+      }
+
+      // Pay
       setStatus('confirm_payment')
-      const payHash = await writeContractAsync({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_VERSION === 'v5' ? PAYMENT_REQUEST_V5_ABI : PAYMENT_REQUEST_V4_ABI,
-        functionName: 'pay',
-        args: [createdRequestId],
-        value: parsedAmount,
-      })
+      let payHash: `0x${string}`
+
+      if (isToken && CONTRACT_VERSION === 'v6') {
+        payHash = await writeContractAsync({
+          address: CONTRACT_ADDRESS,
+          abi: PAYMENT_REQUEST_V6_ABI,
+          functionName: 'payWithToken',
+          args: [createdRequestId],
+        })
+      } else {
+        payHash = await writeContractAsync({
+          address: CONTRACT_ADDRESS,
+          abi: abi,
+          functionName: 'pay',
+          args: [createdRequestId],
+          value: parsedAmount,
+        })
+      }
 
       setStatus('waiting_payment')
       await publicClient.waitForTransactionReceipt({ hash: payHash })
