@@ -57,12 +57,22 @@ contract PaymentRequestV6 {
         address token
     );
 
+    event FeeCollected(
+        bytes32 indexed id,
+        address indexed feeRecipient,
+        uint256 feeAmount,
+        address token
+    );
+
     event RequestPayoutConfigured(bytes32 indexed id, address indexed payoutAddress);
     event RequestRescueConfigured(bytes32 indexed id, address indexed rescueAddress);
     event ProceedsQueued(address indexed recipient, uint256 amount);
     event ProceedsWithdrawn(address indexed recipient, address indexed to, uint256 amount);
     event UsernameRegistered(address indexed user, string username);
     event UsernameChanged(address indexed user, string oldUsername, string newUsername);
+    event FeeUpdated(uint256 newFeeBasisPoints);
+    event FeeRecipientUpdated(address newFeeRecipient);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +89,12 @@ contract PaymentRequestV6 {
     mapping(string => address) public usernameToAddress;
 
     uint256 public constant RESCUE_TIMEOUT = 30 days;
+    uint256 public constant MAX_FEE_BASIS_POINTS = 500; // Max 5%
+
+    // Fee system
+    address public owner;
+    address payable public feeRecipient;
+    uint256 public feeBasisPoints; // 100 = 1%
 
     // Reentrancy guard
     uint256 private _locked = 1;
@@ -87,6 +103,42 @@ contract PaymentRequestV6 {
         _locked = 2;
         _;
         _locked = 1;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    // ─── Constructor ────────────────────────────────────────────────────────────
+
+    constructor(address payable _feeRecipient, uint256 _feeBasisPoints) {
+        require(_feeRecipient != address(0), "Fee recipient cannot be zero");
+        require(_feeBasisPoints <= MAX_FEE_BASIS_POINTS, "Fee too high");
+
+        owner = msg.sender;
+        feeRecipient = _feeRecipient;
+        feeBasisPoints = _feeBasisPoints;
+    }
+
+    // ─── Owner functions ────────────────────────────────────────────────────────
+
+    function setFeeBasisPoints(uint256 _feeBasisPoints) external onlyOwner {
+        require(_feeBasisPoints <= MAX_FEE_BASIS_POINTS, "Fee too high");
+        feeBasisPoints = _feeBasisPoints;
+        emit FeeUpdated(_feeBasisPoints);
+    }
+
+    function setFeeRecipient(address payable _feeRecipient) external onlyOwner {
+        require(_feeRecipient != address(0), "Fee recipient cannot be zero");
+        feeRecipient = _feeRecipient;
+        emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner cannot be zero");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
 
     // ─── Native zkLTC requests (V5-compatible) ──────────────────────────────────
@@ -175,7 +227,7 @@ contract PaymentRequestV6 {
 
     // ─── Pay functions ──────────────────────────────────────────────────────────
 
-    /// @notice Pay a native zkLTC request
+    /// @notice Pay a native zkLTC request. Fee is deducted from recipient's share.
     function pay(bytes32 id) external payable nonReentrant {
         Request storage req = requests[id];
         require(req.recipient != address(0), "Request does not exist");
@@ -186,20 +238,31 @@ contract PaymentRequestV6 {
         require(msg.value == amount, "Incorrect payment amount");
         require(amount > 0, "Amount must be > 0");
 
+        // Calculate fee
+        uint256 fee = (amount * feeBasisPoints) / 10000;
+        uint256 recipientAmount = amount - fee;
+
         _recordPayment(id, req, amount);
 
-        // Transfer native token to recipient
-        (bool sent, ) = req.recipient.call{value: amount}("");
+        // Transfer fee to feeRecipient
+        if (fee > 0) {
+            (bool feeSent, ) = feeRecipient.call{value: fee}("");
+            require(feeSent, "Fee transfer failed");
+            emit FeeCollected(id, feeRecipient, fee, address(0));
+        }
+
+        // Transfer remaining to recipient
+        (bool sent, ) = req.recipient.call{value: recipientAmount}("");
         if (!sent) {
             // Queue for withdrawal
-            pendingWithdrawals[req.recipient] += amount;
-            queuedRequestProceeds[id] += amount;
+            pendingWithdrawals[req.recipient] += recipientAmount;
+            queuedRequestProceeds[id] += recipientAmount;
             queuedRequestQueuedAt[id] = block.timestamp;
-            emit ProceedsQueued(req.recipient, amount);
+            emit ProceedsQueued(req.recipient, recipientAmount);
         }
     }
 
-    /// @notice Pay an ERC-20 token request
+    /// @notice Pay an ERC-20 token request. Fee is deducted from recipient's share.
     /// @param id The request ID
     /// @param payAmount Amount to pay (used only when request has no fixed amount, i.e. amount == 0)
     function payWithToken(bytes32 id, uint256 payAmount) external nonReentrant {
@@ -211,13 +274,25 @@ contract PaymentRequestV6 {
         uint256 amount = req.amount > 0 ? req.amount : payAmount;
         require(amount > 0, "Amount must be > 0");
 
+        // Calculate fee
+        uint256 fee = (amount * feeBasisPoints) / 10000;
+        uint256 recipientAmount = amount - fee;
+
         IERC20 token = IERC20(req.token);
         uint256 allowance = token.allowance(msg.sender, address(this));
         require(allowance >= amount, "Insufficient token allowance");
 
         _recordPayment(id, req, amount);
 
-        bool success = token.transferFrom(msg.sender, req.recipient, amount);
+        // Transfer fee to feeRecipient
+        if (fee > 0) {
+            bool feeSuccess = token.transferFrom(msg.sender, feeRecipient, fee);
+            require(feeSuccess, "Fee token transfer failed");
+            emit FeeCollected(id, feeRecipient, fee, req.token);
+        }
+
+        // Transfer remaining to recipient
+        bool success = token.transferFrom(msg.sender, req.recipient, recipientAmount);
         require(success, "Token transfer failed");
     }
 
@@ -297,6 +372,12 @@ contract PaymentRequestV6 {
     function getPayment(bytes32 id, uint256 index) external view returns (address payer, uint256 amount, uint256 paidAt) {
         Payment storage p = requestPayments[id][index];
         return (p.payer, p.amount, p.paidAt);
+    }
+
+    /// @notice Calculate fee for a given amount
+    function calculateFee(uint256 amount) external view returns (uint256 fee, uint256 recipientAmount) {
+        fee = (amount * feeBasisPoints) / 10000;
+        recipientAmount = amount - fee;
     }
 
     // ─── Internal ───────────────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract } from 'wagmi'
 import { usePay } from '@/hooks/usePay'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
+import { CONTRACT_ADDRESS, CONTRACT_ABI, CONTRACT_VERSION } from '@/lib/contract'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,16 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAdd
 
   const token = getTokenByAddress(tokenAddress ?? null)
   const isNative = isNativeToken(tokenAddress)
+
+  // Read fee from contract
+  const { data: feeBasisPoints } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: 'feeBasisPoints',
+    query: { enabled: CONTRACT_VERSION === 'v6' },
+  })
+
+  const feePercent = feeBasisPoints ? Number(feeBasisPoints) / 100 : 0
 
   useEffect(() => {
     if (reusable && isSuccess && fixedAmount === 0n) {
@@ -63,6 +74,11 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAdd
           min={isNative ? '0.001' : '0.01'}
           step={isNative ? '0.001' : '0.01'}
         />
+      )}
+      {feePercent > 0 && (
+        <p className="text-xs text-white/40">
+          Fee: {feePercent}% (deducted from recipient)
+        </p>
       )}
       <Button
         className="w-full"
