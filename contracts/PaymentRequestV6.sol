@@ -300,7 +300,13 @@ contract PaymentRequestV6 {
     // ─── Internal ───────────────────────────────────────────────────────────────
 
     function _createRequest(address recipient, uint256 amount, string calldata label, bool reusable, address token) internal returns (bytes32 id) {
-        id = keccak256(abi.encodePacked(msg.sender, recipient, amount, label, block.timestamp, reusable, token));
+        require(recipient != address(0), "Recipient cannot be zero address");
+        if (token != address(0)) {
+            require(amount > 0, "Token requests must have fixed amount");
+        }
+
+        id = keccak256(abi.encode(msg.sender, recipient, amount, label, block.timestamp, reusable, token));
+        require(requests[id].recipient == address(0), "Request ID collision, retry");
 
         requests[id] = Request({
             creator: msg.sender,
