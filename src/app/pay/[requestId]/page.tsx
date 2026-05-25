@@ -137,6 +137,7 @@ export default function PayPage({
               reusable={request.reusable}
               paymentCount={request.paymentCount}
               totalPaid={request.totalPaid}
+              tokenAddress={request.token}
             />
           </div>
 
