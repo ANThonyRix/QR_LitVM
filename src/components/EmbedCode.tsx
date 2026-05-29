@@ -53,7 +53,7 @@ export function EmbedCode({ requestId, tokenSymbol = 'zkLTC' }: Props) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Embed the "Pay" button on your site:
+        Embed the &quot;Pay&quot; button on your site:
       </p>
       <pre className="bg-muted rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
         {code}
@@ -61,6 +61,15 @@ export function EmbedCode({ requestId, tokenSymbol = 'zkLTC' }: Props) {
       <Button variant="outline" className="w-full" onClick={copy}>
         {copied ? 'Copied!' : 'Copy code'}
       </Button>
+      <div className="bg-muted/50 border border-border rounded-lg p-3 space-y-1.5">
+        <p className="text-xs font-medium text-foreground">Where to paste:</p>
+        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+          <li>In your HTML file — inside <code className="bg-muted px-1 rounded">&lt;body&gt;</code> where you want the button</li>
+          <li>WordPress — use a &quot;Custom HTML&quot; block</li>
+          <li>Tilda / Wix / Squarespace — use an &quot;Embed code&quot; or &quot;HTML&quot; widget</li>
+          <li>React / Next.js — paste into a <code className="bg-muted px-1 rounded">dangerouslySetInnerHTML</code> or use an iframe directly</li>
+        </ul>
+      </div>
       <p className="text-xs text-muted-foreground">
         Preview:{' '}
         <a href={`/widget/${requestId}`} target="_blank" className="underline">
