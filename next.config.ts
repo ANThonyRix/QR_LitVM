@@ -22,15 +22,11 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Widget routes — allow embedding from any origin
+        // Widget routes — allow embedding from any origin (including file://)
         source: '/widget/:path*',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          {
-            key: 'Content-Security-Policy',
-            value: "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; img-src 'self' data: https:;",
-          },
+          { key: 'Referrer-Policy', value: 'no-referrer-when-downgrade' },
         ],
       },
     ]
