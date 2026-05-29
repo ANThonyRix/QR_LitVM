@@ -5,6 +5,7 @@ import { usePay } from '@/hooks/usePay'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { CONTRACT_ADDRESS, CONTRACT_ABI, CONTRACT_VERSION } from '@/lib/contract'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
+import { validatePaymentAmount } from '@/lib/validation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { WalletRpcRecoveryNotice } from '@/components/WalletRpcRecoveryNotice'
@@ -57,6 +58,7 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAdd
     : customAmount
 
   const amount = formattedAmount
+  const amountError = fixedAmount === 0n ? validatePaymentAmount(customAmount) : null
 
   return (
     <div className="space-y-3">
@@ -75,6 +77,9 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAdd
           step={isNative ? '0.001' : '0.01'}
         />
       )}
+      {fixedAmount === 0n && customAmount && amountError && (
+        <p className="text-xs text-red-400">{amountError}</p>
+      )}
       {feePercent > 0 && (
         <p className="text-xs text-white/40">
           Fee: {feePercent}% (deducted from recipient)
@@ -83,7 +88,7 @@ export function PayButton({ requestId, fixedAmount, isClosed, reusable, tokenAdd
       <Button
         className="w-full"
         size="lg"
-        disabled={!amount || isPending || isPreparingWallet || isApproving || isConfirming}
+        disabled={!amount || !!amountError || isPending || isPreparingWallet || isApproving || isConfirming}
         onClick={() => void pay(requestId, amount, tokenAddress, token.decimals)}
       >
         {isPreparingWallet ? 'Checking wallet network...' :

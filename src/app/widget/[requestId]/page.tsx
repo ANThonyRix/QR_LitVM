@@ -7,6 +7,7 @@ import { PayButton } from '@/components/PayButton'
 import { WalletConnect } from '@/components/WalletConnect'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
+import { isValidBytes32 } from '@/lib/validation'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const WIDGET_RESIZE_MESSAGE = 'pay-litvm:widget-resize'
@@ -21,13 +22,24 @@ function postWidgetHeight(requestId: `0x${string}`) {
     document.body.scrollHeight,
   )
 
+  // Use document.referrer origin when available, fall back to '*' for first load
+  let targetOrigin = '*'
+  try {
+    if (document.referrer) {
+      const url = new URL(document.referrer)
+      targetOrigin = url.origin
+    }
+  } catch {
+    // Invalid referrer — keep wildcard
+  }
+
   window.parent.postMessage(
     {
       type: WIDGET_RESIZE_MESSAGE,
       requestId,
       height,
     },
-    '*',
+    targetOrigin,
   )
 }
 
@@ -38,8 +50,8 @@ export default function WidgetPage({
 }) {
   const { requestId } = use(params)
   const searchParams = useSearchParams()
-  const id = requestId as `0x${string}`
-  const { request, isLoading, error, refetch } = usePaymentRequest(id)
+  const id = isValidBytes32(requestId) ? requestId : null
+  const { request, isLoading, error, refetch } = usePaymentRequest(id!)
   const isButtonMode = searchParams.get('view') === 'button'
   const [isExpanded, setIsExpanded] = useState(!isButtonMode)
 
@@ -48,7 +60,7 @@ export default function WidgetPage({
   }, [isButtonMode])
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || !id) {
       return
     }
 
@@ -72,6 +84,16 @@ export default function WidgetPage({
   const shellClassName = isButtonMode
     ? 'bg-[#050816] p-0 font-sans text-white'
     : 'min-h-screen bg-[#050816] p-4 font-sans text-white'
+
+  if (!id) {
+    return (
+      <div className={shellClassName}>
+        <div className="mx-auto w-full max-w-[560px] rounded-[28px] border border-white/10 bg-[#09101d] p-6 text-sm text-red-300 shadow-[0_30px_90px_rgba(2,6,23,.55)]">
+          Invalid payment request ID
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

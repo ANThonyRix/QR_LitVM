@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { useRequestPayments } from '@/hooks/useRequestPayments'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
+import { isValidBytes32 } from '@/lib/validation'
 import { WalletConnect } from '@/components/WalletConnect'
 import { PayButton } from '@/components/PayButton'
 import { PaymentStatus } from '@/components/PaymentStatus'
@@ -27,10 +28,10 @@ export default function PayPage({
   params: Promise<{ requestId: string }>
 }) {
   const { requestId } = use(params)
-  const id = requestId as `0x${string}`
+  const id = isValidBytes32(requestId) ? requestId : null
   const { address } = useAccount()
-  const { request, isLoading, error, refetch } = usePaymentRequest(id)
-  const { payments } = useRequestPayments(id, request?.paymentCount)
+  const { request, isLoading, error, refetch } = usePaymentRequest(id!)
+  const { payments } = useRequestPayments(id!, request?.paymentCount)
   const [showPayments, setShowPayments] = useState(false)
 
   const myPayments = address
@@ -40,6 +41,17 @@ export default function PayPage({
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
   const bg = { background: 'oklch(0.09 0.025 264)' } as React.CSSProperties
+
+  if (!id) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4" style={{ background: 'oklch(0.09 0.025 264)' }}>
+        <div style={glassCard} className="max-w-sm w-full p-8 text-center">
+          <div className="text-4xl mb-3">⚠️</div>
+          <p className="text-white/60">Invalid payment request ID</p>
+        </div>
+      </main>
+    )
+  }
 
   if (isLoading) {
     return (

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
     function allowance(address owner, address spender) external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);
 }
@@ -73,6 +74,9 @@ contract PaymentRequestV6 {
     event FeeUpdated(uint256 newFeeBasisPoints);
     event FeeRecipientUpdated(address newFeeRecipient);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event StuckNativeReceived(address indexed sender, uint256 amount);
+    event StuckNativeWithdrawn(address indexed to, uint256 amount);
+    event StuckTokensWithdrawn(address indexed token, address indexed to, uint256 amount);
 
     // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -84,12 +88,16 @@ contract PaymentRequestV6 {
     mapping(bytes32 => uint256) public queuedRequestProceeds;
     mapping(bytes32 => uint256) public queuedRequestQueuedAt;
 
+    // Total pending withdrawals across all users (protects withdrawStuckNative)
+    uint256 public totalPendingWithdrawals;
+
     // Username mappings
     mapping(address => string) public addressToUsername;
     mapping(string => address) public usernameToAddress;
 
     uint256 public constant RESCUE_TIMEOUT = 30 days;
     uint256 public constant MAX_FEE_BASIS_POINTS = 500; // Max 5%
+    uint256 private constant _MAX_LABEL_LENGTH = 256;
 
     // Fee system
     address public owner;
@@ -256,6 +264,7 @@ contract PaymentRequestV6 {
         if (!sent) {
             // Queue for withdrawal
             pendingWithdrawals[req.recipient] += recipientAmount;
+            totalPendingWithdrawals += recipientAmount;
             queuedRequestProceeds[id] += recipientAmount;
             queuedRequestQueuedAt[id] = block.timestamp;
             emit ProceedsQueued(req.recipient, recipientAmount);
@@ -307,6 +316,7 @@ contract PaymentRequestV6 {
 
         queuedRequestProceeds[id] = 0;
         pendingWithdrawals[req.recipient] -= amount;
+        totalPendingWithdrawals -= amount;
 
         (bool sent, ) = to.call{value: amount}("");
         require(sent, "Withdrawal failed");
@@ -325,6 +335,7 @@ contract PaymentRequestV6 {
         Request storage req = requests[id];
         queuedRequestProceeds[id] = 0;
         pendingWithdrawals[req.recipient] -= amount;
+        totalPendingWithdrawals -= amount;
 
         (bool sent, ) = rescueAddr.call{value: amount}("");
         require(sent, "Rescue transfer failed");
@@ -336,6 +347,7 @@ contract PaymentRequestV6 {
 
     function registerUsername(string calldata username) external {
         require(bytes(username).length >= 3 && bytes(username).length <= 32, "Username must be 3-32 chars");
+        _validateUsername(username);
         require(usernameToAddress[username] == address(0), "Username taken");
         require(bytes(addressToUsername[msg.sender]).length == 0, "Already registered");
 
@@ -347,6 +359,7 @@ contract PaymentRequestV6 {
 
     function changeUsername(string calldata newUsername) external {
         require(bytes(newUsername).length >= 3 && bytes(newUsername).length <= 32, "Username must be 3-32 chars");
+        _validateUsername(newUsername);
         require(usernameToAddress[newUsername] == address(0), "Username taken");
 
         string memory oldUsername = addressToUsername[msg.sender];
@@ -384,6 +397,8 @@ contract PaymentRequestV6 {
 
     function _createRequest(address recipient, uint256 amount, string calldata label, bool reusable, address token) internal returns (bytes32 id) {
         require(recipient != address(0), "Recipient cannot be zero address");
+        require(bytes(label).length > 0, "Label cannot be empty");
+        require(bytes(label).length <= _MAX_LABEL_LENGTH, "Label too long");
 
         id = keccak256(abi.encode(msg.sender, recipient, amount, label, block.timestamp, reusable, token));
         require(requests[id].recipient == address(0), "Request ID collision, retry");
@@ -416,6 +431,18 @@ contract PaymentRequestV6 {
         emit RequestRescueConfigured(id, rescueAddress);
     }
 
+    /// @dev Only allows lowercase a-z, 0-9, and underscore
+    function _validateUsername(string calldata username) internal pure {
+        bytes memory b = bytes(username);
+        for (uint256 i = 0; i < b.length; i++) {
+            bytes1 c = b[i];
+            bool valid = (c >= 0x61 && c <= 0x7A) || // a-z
+                         (c >= 0x30 && c <= 0x39) || // 0-9
+                         (c == 0x5F);                 // _
+            require(valid, "Username: invalid character");
+        }
+    }
+
     function _recordPayment(bytes32 id, Request storage req, uint256 amount) internal {
         req.paid = true;
         req.payer = msg.sender;
@@ -434,16 +461,35 @@ contract PaymentRequestV6 {
 
     // ─── Receive / Fallback ─────────────────────────────────────────────────────
 
-    receive() external payable {}
-    fallback() external payable {}
+    /// @notice Accept native tokens sent directly (so they can be rescued via withdrawStuckNative)
+    receive() external payable {
+        emit StuckNativeReceived(msg.sender, msg.value);
+    }
 
-    /// @notice Withdraw native tokens accidentally sent directly to the contract
-    function withdrawStuckNative() external onlyOwner {
+    fallback() external payable {
+        emit StuckNativeReceived(msg.sender, msg.value);
+    }
+
+    // ─── Stuck funds recovery ───────────────────────────────────────────────────
+
+    /// @notice Withdraw native tokens accidentally sent directly to the contract.
+    ///         Subtracts totalPendingWithdrawals to protect user funds.
+    function withdrawStuckNative() external onlyOwner nonReentrant {
         uint256 balance = address(this).balance;
-        // Subtract any pending withdrawals that belong to users
-        uint256 stuck = balance; // In practice, pendingWithdrawals are tracked per-user
-        require(stuck > 0, "Nothing to withdraw");
+        require(balance > totalPendingWithdrawals, "Nothing to withdraw");
+        uint256 stuck = balance - totalPendingWithdrawals;
         (bool sent, ) = feeRecipient.call{value: stuck}("");
         require(sent, "Withdraw failed");
+        emit StuckNativeWithdrawn(feeRecipient, stuck);
+    }
+
+    /// @notice Withdraw ERC-20 tokens accidentally sent to the contract
+    function withdrawStuckTokens(address token) external onlyOwner nonReentrant {
+        require(token != address(0), "Use withdrawStuckNative for native");
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        require(balance > 0, "No tokens to withdraw");
+        bool sent = IERC20(token).transfer(feeRecipient, balance);
+        require(sent, "Token withdraw failed");
+        emit StuckTokensWithdrawn(token, feeRecipient, balance);
     }
 }

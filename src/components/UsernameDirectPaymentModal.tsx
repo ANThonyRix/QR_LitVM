@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
+import { validatePaymentAmount } from '@/lib/validation'
 import { useDirectPayment } from '@/hooks/useDirectPayment'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,6 +60,7 @@ export function UsernameDirectPaymentModal({
   }, [requestId])
 
   const statusText = getStatusText(status, recipientUsername)
+  const amountError = validatePaymentAmount(amount)
 
   const closeModal = () => {
     reset()
@@ -151,6 +153,9 @@ export function UsernameDirectPaymentModal({
               step="0.001"
               className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-blue-500/50"
             />
+            {amount && amountError && (
+              <p className="text-xs text-red-400">{amountError}</p>
+            )}
           </div>
 
           <p className="rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-xs text-white/45">
@@ -166,7 +171,7 @@ export function UsernameDirectPaymentModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!isConnected || !label.trim() || !amount.trim() || isBusy}
+            disabled={!isConnected || !label.trim() || !amount.trim() || !!amountError || isBusy}
             className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
           >
