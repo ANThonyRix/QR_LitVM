@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WalletRpcRecoveryNotice } from './WalletRpcRecoveryNotice'
 import { EmbedCode } from './EmbedCode'
+import { MultiTokenEmbedCode } from './MultiTokenEmbedCode'
 import { QRDisplay } from './QRDisplay'
 import { isAddress } from 'viem'
 
@@ -312,6 +313,9 @@ export function PaymentGenerator({
               <TabsTrigger value="embed" className="flex-1 text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white">
                 Widget
               </TabsTrigger>
+              <TabsTrigger value="multi" className="flex-1 text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white">
+                Multi-token
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="qr" className="flex justify-center py-5">
@@ -333,6 +337,10 @@ export function PaymentGenerator({
 
             <TabsContent value="embed" className="pt-4">
               {requestId && <EmbedCode requestId={requestId} tokenSymbol={selectedToken.symbol} />}
+            </TabsContent>
+
+            <TabsContent value="multi" className="pt-4">
+              <MultiTokenEmbedCode amount={amount} label={label} />
             </TabsContent>
           </Tabs>
 
