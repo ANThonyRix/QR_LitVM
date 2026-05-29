@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useAccount } from 'wagmi'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { validatePaymentAmount } from '@/lib/validation'
+import { TOKENS, TokenConfig } from '@/lib/tokens'
 import { useDirectPayment } from '@/hooks/useDirectPayment'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,6 +50,7 @@ export function UsernameDirectPaymentModal({
 
   const [label, setLabel] = useState('')
   const [amount, setAmount] = useState('')
+  const [selectedToken, setSelectedToken] = useState<TokenConfig>(TOKENS[0])
   const [copied, setCopied] = useState(false)
 
   const receiptUrl = useMemo(() => {
@@ -66,6 +68,7 @@ export function UsernameDirectPaymentModal({
     reset()
     setLabel('')
     setAmount('')
+    setSelectedToken(TOKENS[0])
     setCopied(false)
     onClose()
   }
@@ -79,6 +82,8 @@ export function UsernameDirectPaymentModal({
       recipientAddress,
       amount,
       label: label.trim(),
+      tokenAddress: selectedToken.address,
+      tokenDecimals: selectedToken.decimals,
     })
   }
 
@@ -143,7 +148,28 @@ export function UsernameDirectPaymentModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wide text-white/70">Amount zkLTC *</Label>
+            <Label className="text-xs uppercase tracking-wide text-white/70">Token</Label>
+            <div className="flex gap-2">
+              {TOKENS.map(token => (
+                <button
+                  key={token.symbol}
+                  type="button"
+                  onClick={() => setSelectedToken(token)}
+                  disabled={isBusy}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    selectedToken.symbol === token.symbol
+                      ? 'border-blue-500/50 bg-blue-500/20 text-blue-200'
+                      : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                >
+                  {token.symbol}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide text-white/70">Amount {selectedToken.symbol} *</Label>
             <Input
               type="number"
               placeholder="0.005"
