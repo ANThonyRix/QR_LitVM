@@ -22,10 +22,9 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Widget routes — allow embedding but still protect content
+        // Widget routes — allow embedding from any origin
         source: '/widget/:path*',
         headers: [
-          { key: 'X-Frame-Options', value: 'ALLOWALL' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
