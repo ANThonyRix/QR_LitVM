@@ -13,6 +13,7 @@ import { PAYMENT_REQUEST_ABI as PAYMENT_REQUEST_V2_ABI } from '@/lib/PaymentRequ
 import { PAYMENT_REQUEST_V3_ABI } from '@/lib/PaymentRequestV3.abi'
 import { PAYMENT_REQUEST_V4_ABI } from '@/lib/PaymentRequestV4.abi'
 import { PAYMENT_REQUEST_V5_ABI } from '@/lib/PaymentRequestV5.abi'
+import { PAYMENT_REQUEST_V6_ABI } from '@/lib/PaymentRequestV6.abi'
 
 export const ONCHAIN_HISTORY_REFRESH_EVENT = 'qrlitvm-onchain-history-refresh'
 
@@ -67,6 +68,10 @@ function normalizeV1RequestSnapshot(rawRequest: readonly unknown[]): V1RequestSn
 }
 
 function getModernHistoryAbi() {
+  if (CONTRACT_VERSION === 'v6') {
+    return PAYMENT_REQUEST_V6_ABI
+  }
+
   if (CONTRACT_VERSION === 'v5') {
     return PAYMENT_REQUEST_V5_ABI
   }
@@ -150,7 +155,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
       try {
         const [createdLogs, paidLogs, receivedLogs] = await Promise.all([
           (async () => {
-            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
+            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') {
               const requestCreatedEvent = getAbiItem({
                 abi: getModernHistoryAbi(),
                 name: 'RequestCreated',
@@ -160,7 +165,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 address: CONTRACT_ADDRESS,
                 event: requestCreatedEvent,
                 args:
-                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
                     ? { creator: walletAddress }
                     : { recipient: walletAddress },
                 fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
@@ -182,7 +187,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
             })
           })(),
           (async () => {
-            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
+            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') {
               const requestPaidEvent = getAbiItem({
                 abi: getModernHistoryAbi(),
                 name: 'RequestPaid',
@@ -211,7 +216,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
             })
           })(),
           (async () => {
-            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
+            if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') {
               const requestPaidEvent = getAbiItem({
                 abi: getModernHistoryAbi(),
                 name: 'RequestPaid',
@@ -244,7 +249,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
           return
         }
 
-        if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5') {
+        if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') {
           const createdLogsV2 = createdLogs as Array<{
             args: {
               id?: `0x${string}`
@@ -288,7 +293,7 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 amountDisplay: toAmountDisplay(amount),
                 timestamp: Number(createdAt),
                 counterparty:
-                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5'
+                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
                     ? (log.args.recipient as `0x${string}` | undefined)
                     : undefined,
               }
