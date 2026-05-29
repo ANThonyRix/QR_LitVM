@@ -10,7 +10,7 @@ export const DEFAULT_CONTRACT_ADDRESS =
 
 export const DEFAULT_CONTRACT_VERSION = 'v6' as const
 
-export const DEFAULT_CONTRACT_DEPLOYMENT_BLOCK = 6112856n
+export const DEFAULT_CONTRACT_DEPLOYMENT_BLOCK = 13595499n
 
 type ContractVersion = 'v1' | 'v2' | 'v3' | 'v4' | 'v5' | 'v6'
 
