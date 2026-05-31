@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { formatEther, formatUnits } from 'viem'
 import { PayButton } from '@/components/PayButton'
 import { WalletConnect } from '@/components/WalletConnect'
+import { WidgetMethodSelector } from '@/components/WidgetMethodSelector'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
 import { isValidBytes32 } from '@/lib/validation'
@@ -229,21 +230,28 @@ export default function WidgetPage({
                 </p>
                 <p className="text-4xl font-semibold leading-none text-white">{amountDisplay}</p>
               </div>
-              <WalletConnect />
             </div>
 
-            <div className="rounded-2xl border border-white/8 bg-[#0b1220] px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Recipient</p>
-              <p className="mt-2 break-all font-mono text-sm text-white/70">{request.recipient}</p>
-            </div>
+            <WidgetMethodSelector
+              qrUrl={typeof window !== 'undefined' ? `${window.location.origin}/pay/${requestId}` : ''}
+            >
+              <div className="space-y-4">
+                <WalletConnect />
 
-            <PayButton
-              requestId={id}
-              fixedAmount={amount}
-              isClosed={isClosed}
-              reusable={request.reusable}
-              tokenAddress={request.token}
-            />
+                <div className="rounded-2xl border border-white/8 bg-[#0b1220] px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Recipient</p>
+                  <p className="mt-2 break-all font-mono text-sm text-white/70">{request.recipient}</p>
+                </div>
+
+                <PayButton
+                  requestId={id}
+                  fixedAmount={amount}
+                  isClosed={isClosed}
+                  reusable={request.reusable}
+                  tokenAddress={request.token}
+                />
+              </div>
+            </WidgetMethodSelector>
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { TOKENS, TokenConfig } from '@/lib/tokens'
 import { validatePaymentAmount } from '@/lib/validation'
 import { useDirectPayment } from '@/hooks/useDirectPayment'
 import { WalletConnect } from '@/components/WalletConnect'
+import { WidgetMethodSelector } from '@/components/WidgetMethodSelector'
 
 const WIDGET_RESIZE_MESSAGE = 'pay-litvm:widget-resize'
 
@@ -246,45 +247,52 @@ export default function MultiTokenWidgetPage({
               </div>
             )}
 
-            {/* Recipient */}
-            <div className="rounded-2xl border border-white/8 bg-[#0b1220] px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Recipient</p>
-              <p className="mt-2 break-all font-mono text-xs text-white/70">{recipientAddress}</p>
-            </div>
-
-            {/* Wallet */}
-            <WalletConnect />
-
-            {/* Status */}
-            {statusText && (
-              <p className={`rounded-lg px-3 py-2 text-sm ${
-                isSuccess
-                  ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                  : 'border border-blue-500/20 bg-blue-500/10 text-blue-200'
-              }`}>
-                {statusText}
-              </p>
-            )}
-
-            {/* Error */}
-            {error && (
-              <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                {error.message}
-              </p>
-            )}
-
-            {/* Pay button */}
-            <button
-              type="button"
-              onClick={handlePay}
-              disabled={!isConnected || !(amount || customAmount) || !!amountError || isBusy}
-              className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-              style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+            {/* Method selector: Wallet or QR */}
+            <WidgetMethodSelector
+              qrUrl={typeof window !== 'undefined' ? `${window.location.origin}/widget/pay/${recipientAddress}${window.location.search}` : ''}
             >
-              {isBusy
-                ? 'Continue in wallet...'
-                : `Pay ${displayAmount || '...'} ${selectedToken.symbol}`}
-            </button>
+              <div className="space-y-4">
+                {/* Recipient */}
+                <div className="rounded-2xl border border-white/8 bg-[#0b1220] px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">Recipient</p>
+                  <p className="mt-2 break-all font-mono text-xs text-white/70">{recipientAddress}</p>
+                </div>
+
+                {/* Wallet */}
+                <WalletConnect />
+
+                {/* Status */}
+                {statusText && (
+                  <p className={`rounded-lg px-3 py-2 text-sm ${
+                    isSuccess
+                      ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                      : 'border border-blue-500/20 bg-blue-500/10 text-blue-200'
+                  }`}>
+                    {statusText}
+                  </p>
+                )}
+
+                {/* Error */}
+                {error && (
+                  <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                    {error.message}
+                  </p>
+                )}
+
+                {/* Pay button */}
+                <button
+                  type="button"
+                  onClick={handlePay}
+                  disabled={!isConnected || !(amount || customAmount) || !!amountError || isBusy}
+                  className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                  style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+                >
+                  {isBusy
+                    ? 'Continue in wallet...'
+                    : `Pay ${displayAmount || '...'} ${selectedToken.symbol}`}
+                </button>
+              </div>
+            </WidgetMethodSelector>
 
             <p className="text-center text-[11px] text-white/30">
               Powered by Pay LitVM
