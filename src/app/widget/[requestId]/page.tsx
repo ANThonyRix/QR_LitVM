@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatEther, formatUnits } from 'viem'
+import { CheckCircle2 } from 'lucide-react'
 import { PayButton } from '@/components/PayButton'
 import { WalletConnect } from '@/components/WalletConnect'
 import { WidgetMethodSelector } from '@/components/WidgetMethodSelector'
@@ -149,8 +150,8 @@ export default function WidgetPage({
       <div className={shellClassName}>
         <div className="mx-auto w-full max-w-[560px] rounded-[28px] border border-emerald-400/15 bg-[#09101d] p-6 shadow-[0_30px_90px_rgba(2,6,23,.55)]">
           <div className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-4 text-sm font-medium text-emerald-300">
-            <span className="text-lg">✓</span>
-            <span>Paid {amountDisplay}</span>
+            <CheckCircle2 size={18} />
+            <span className="font-mono tabular-nums">Paid {amountDisplay}</span>
           </div>
         </div>
       </div>
@@ -177,8 +178,7 @@ export default function WidgetPage({
             <button
               type="button"
               onClick={() => setIsExpanded(true)}
-              className="rounded-xl px-4 py-3 text-sm font-semibold text-white transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+              className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Open payment form
             </button>
@@ -228,7 +228,7 @@ export default function WidgetPage({
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
                   Amount
                 </p>
-                <p className="text-4xl font-semibold leading-none text-white">{amountDisplay}</p>
+                <p className="font-mono text-4xl font-semibold leading-none tabular-nums text-white">{amountDisplay}</p>
               </div>
             </div>
 

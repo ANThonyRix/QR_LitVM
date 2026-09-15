@@ -15,6 +15,7 @@ import { EmbedCode } from './EmbedCode'
 import { MultiTokenEmbedCode } from './MultiTokenEmbedCode'
 import { QRDisplay } from './QRDisplay'
 import { isAddress } from 'viem'
+import { Plus } from 'lucide-react'
 
 type LinkMode = 'one-time' | 'reusable'
 
@@ -22,13 +23,6 @@ type PaymentGeneratorProps = {
   recipientAddress?: `0x${string}`
   recipientUsername?: string
 }
-
-const glassCard = {
-  background: 'oklch(0.13 0.03 264 / 0.8)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-  backdropFilter: 'blur(20px)',
-  borderRadius: '16px',
-} as React.CSSProperties
 
 export function PaymentGenerator({
   recipientAddress,
@@ -104,26 +98,21 @@ export function PaymentGenerator({
 
   if (!isConnected) {
     return (
-      <div style={glassCard} className="p-6 text-center">
-        <p className="text-sm text-white/60">Connect your wallet to create a payment link</p>
+      <div className="rounded-2xl border border-border bg-card p-6 text-center">
+        <p className="text-sm text-muted-foreground">Connect your wallet to create a payment link</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-5">
-      <div style={glassCard} className="space-y-5 p-6">
+      <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
         <div className="mb-1 flex items-center gap-2">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-sm"
-            style={{
-              background: 'oklch(0.62 0.19 261 / 0.2)',
-              border: '1px solid oklch(0.62 0.19 261 / 0.3)',
-            }}
-          >
-            +
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-primary/30 bg-primary/15 text-primary">
+            <Plus size={16} />
           </div>
-          <h2 className="font-semibold text-white">
+          <h2 className="font-semibold text-foreground">
+
             {createsForExternalRecipient
               ? `Create payment link for ${recipientUsername ? `@${recipientUsername}` : 'this wallet'}`
               : 'Create payment link'}
@@ -131,12 +120,12 @@ export function PaymentGenerator({
         </div>
 
         {recipientAddress && (
-          <div className="rounded-xl border border-white/8 px-3 py-3" style={{ background: 'oklch(1 0 0 / 3%)' }}>
-            <p className="text-xs uppercase tracking-wide text-white/40">Recipient</p>
-            <p className="mt-1 text-sm font-semibold text-white">
+          <div className="rounded-xl border border-border bg-white/[0.03] px-3 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Recipient</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
               {recipientUsername ? `@${recipientUsername}` : 'Selected wallet'}
             </p>
-            <p className="mt-1 break-all font-mono text-xs text-white/55">{recipientAddress}</p>
+            <p className="mt-1 break-all font-mono text-xs tabular-nums text-muted-foreground">{recipientAddress}</p>
           </div>
         )}
 
@@ -247,8 +236,7 @@ export function PaymentGenerator({
 
         <button
           type="button"
-          className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+          className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           onClick={handleCreate}
           disabled={
             !label.trim() ||
@@ -288,13 +276,13 @@ export function PaymentGenerator({
       </div>
 
       {payUrl && (
-        <div style={glassCard} className="p-5">
+        <div className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-foreground">
                 {linkMode === 'reusable' ? 'Reusable payment link ready' : 'Payment link ready'}
               </p>
-              <p className="mt-1 text-xs text-white/45">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {linkMode === 'reusable'
                   ? 'Use the same URL for repeated payments, donations, or embedded store widgets.'
                   : 'Use this link for a single payment request.'}

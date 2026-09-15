@@ -7,13 +7,7 @@ import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { WalletRpcRecoveryNotice } from './WalletRpcRecoveryNotice'
-
-const glassCard = {
-  background: 'oklch(0.13 0.03 264 / 0.8)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-  backdropFilter: 'blur(20px)',
-  borderRadius: '16px',
-} as React.CSSProperties
+import { AtSign } from 'lucide-react'
 
 export function UsernameRegister() {
   const [input, setInput] = useState('')
@@ -61,17 +55,13 @@ export function UsernameRegister() {
 
   if (myUsername && !changing) {
     return (
-      <div style={glassCard} className="space-y-2 p-4">
+      <div className="space-y-2 rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-white/50">Your short link:</span>
           <button
             type="button"
             onClick={copyShortLink}
-            className="rounded-lg px-3 py-1 font-mono text-sm text-blue-300 transition-all hover:text-blue-200 active:scale-[0.98]"
-            style={{
-              background: 'oklch(0.62 0.19 261 / 0.15)',
-              border: '1px solid oklch(0.62 0.19 261 / 0.3)',
-            }}
+            className="rounded-lg border border-primary/30 bg-primary/15 px-3 py-1 font-mono text-sm text-blue-300 transition-colors hover:text-blue-200"
             title="Tap or click to copy"
           >
             {shortLink}
@@ -99,16 +89,10 @@ export function UsernameRegister() {
   }
 
   return (
-    <div style={glassCard} className="space-y-4 p-6">
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
       <div className="flex items-center gap-2">
-        <div
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-sm"
-          style={{
-            background: 'oklch(0.55 0.2 274 / 0.2)',
-            border: '1px solid oklch(0.55 0.2 274 / 0.3)',
-          }}
-        >
-          @
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-primary/30 bg-primary/15 text-primary">
+          <AtSign size={14} />
         </div>
         <h2 className="text-sm font-semibold text-white">
           {isChange ? `Change @${myUsername}` : 'Short link'}
@@ -134,7 +118,7 @@ export function UsernameRegister() {
           value={input}
           onChange={event => setInput(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
           maxLength={32}
-          className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-purple-500/50"
+          className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-blue-500/50"
         />
       </div>
 
@@ -146,8 +130,7 @@ export function UsernameRegister() {
 
       <button
         type="button"
-        className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-        style={{ background: 'linear-gradient(135deg, oklch(0.55 0.2 274), oklch(0.5 0.18 280))' }}
+        className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
         onClick={handleSubmit}
         disabled={input.length < 3 || isPending || isPreparingWallet || isConfirming}
       >

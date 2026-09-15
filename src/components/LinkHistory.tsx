@@ -12,22 +12,7 @@ import {
 
 type HistoryTabKey = 'created' | 'paid' | 'received'
 
-const glassCard = {
-  background: 'oklch(0.13 0.03 264 / 0.8)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-  backdropFilter: 'blur(20px)',
-  borderRadius: '16px',
-} as React.CSSProperties
-
-const actionButtonStyle = {
-  background: 'oklch(1 0 0 / 4%)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-} as React.CSSProperties
-
-const copyButtonStyle = {
-  background: 'oklch(1 0 0 / 4%)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-} as React.CSSProperties
+const actionButtonClass = 'rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white'
 
 function formatTimestamp(timestamp: number) {
   return new Intl.DateTimeFormat(undefined, {
@@ -72,13 +57,12 @@ function HistoryList({
       {entries.map(entry => (
         <div
           key={entry.id}
-          className="rounded-2xl border border-white/8 p-4"
-          style={{ background: 'oklch(1 0 0 / 3%)' }}
+          className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{entry.label}</p>
-              <p className="mt-1 text-xs text-white/45">
+              <p className="mt-1 font-mono text-xs tabular-nums text-white/45">
                 {entry.amountDisplay === 'Any amount' ? entry.amountDisplay : `${entry.amountDisplay} zkLTC`}
               </p>
             </div>
@@ -95,25 +79,16 @@ function HistoryList({
 
           <a
             href={entry.url}
-            className="mt-3 block break-all rounded-xl border border-white/8 px-3 py-2 text-xs font-mono text-blue-300 transition-colors hover:text-blue-200"
-            style={{ background: 'oklch(0.62 0.19 261 / 0.08)' }}
+            className="mt-3 block break-all rounded-xl border border-primary/20 bg-primary/[0.08] px-3 py-2 text-xs font-mono text-blue-300 transition-colors hover:text-blue-200"
           >
             {entry.url}
           </a>
 
           <div className="mt-3 flex items-center justify-end gap-2">
-            <a
-              href={entry.url}
-              className="rounded-xl px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
-              style={actionButtonStyle}
-            >
+            <a href={entry.url} className={actionButtonClass}>
               Open
             </a>
-            <button
-              className="rounded-xl px-3 py-2 text-xs font-medium text-white/75 transition-colors hover:text-white"
-              style={copyButtonStyle}
-              onClick={() => copyLink(entry.url, entry.id)}
-            >
+            <button className={actionButtonClass} onClick={() => copyLink(entry.url, entry.id)}>
               {copiedId === entry.id ? 'Copied' : 'Copy'}
             </button>
           </div>
@@ -216,7 +191,7 @@ export function LinkHistory() {
   }
 
   return (
-    <div style={glassCard} className="p-6 space-y-5">
+    <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
       <div>
         <p className="text-xs uppercase tracking-wide text-white/40">On-chain history</p>
         <h2 className="mt-1 text-lg font-semibold text-white">Your wallet activity</h2>

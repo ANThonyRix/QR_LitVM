@@ -1,5 +1,6 @@
 'use client'
 import { Badge } from '@/components/ui/badge'
+import { CheckCircle2, RefreshCw, Clock } from 'lucide-react'
 import { formatEther, formatUnits } from 'viem'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
 
@@ -22,14 +23,16 @@ export function PaymentStatus({ paid, payer, reusable, paymentCount, totalPaid, 
   if (reusable) {
     return (
       <div className="space-y-1 text-right">
-        <Badge className="bg-blue-500 text-white">Reusable</Badge>
+        <Badge className="gap-1 bg-blue-500 text-white">
+          <RefreshCw size={12} /> Reusable
+        </Badge>
         <p className="text-xs text-muted-foreground">
           {paymentCount > 0n
             ? `${paymentCount.toString()} payments received`
             : 'Ready to receive payments'}
         </p>
         {paymentCount > 0n && (
-          <p className="text-xs text-muted-foreground">
+          <p className="font-mono text-xs tabular-nums text-muted-foreground">
             Total collected: {formatAmount(totalPaid)} {token.symbol}
           </p>
         )}
@@ -44,7 +47,9 @@ export function PaymentStatus({ paid, payer, reusable, paymentCount, totalPaid, 
 
   return paid ? (
     <div className="space-y-1">
-      <Badge className="bg-green-500 text-white">Paid</Badge>
+      <Badge className="gap-1 bg-emerald-600 text-white">
+        <CheckCircle2 size={12} /> Paid
+      </Badge>
       {payer && payer !== '0x0000000000000000000000000000000000000000' && (
         <p className="text-xs text-muted-foreground font-mono">
           from {payer.slice(0, 6)}...{payer.slice(-4)}
@@ -52,6 +57,8 @@ export function PaymentStatus({ paid, payer, reusable, paymentCount, totalPaid, 
       )}
     </div>
   ) : (
-    <Badge variant="outline">Awaiting payment</Badge>
+    <Badge variant="outline" className="gap-1">
+      <Clock size={12} /> Awaiting payment
+    </Badge>
   )
 }

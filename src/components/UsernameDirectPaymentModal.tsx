@@ -10,13 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { WalletRpcRecoveryNotice } from './WalletRpcRecoveryNotice'
 
-const glassCard = {
-  background: 'oklch(0.13 0.03 264 / 0.94)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-  backdropFilter: 'blur(20px)',
-  borderRadius: '16px',
-} as React.CSSProperties
-
 function getStatusText(status: ReturnType<typeof useDirectPayment>['status'], username: string) {
   switch (status) {
     case 'preparing_wallet':
@@ -99,7 +92,10 @@ export function UsernameDirectPaymentModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Send payment to @${recipientUsername}`}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-6 sm:items-center"
       onClick={event => {
         if (event.target === event.currentTarget && !isBusy) {
           closeModal()
@@ -107,7 +103,7 @@ export function UsernameDirectPaymentModal({
       }}
     >
       <div className="w-full max-w-xl space-y-4">
-        <div style={glassCard} className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4">
           <div>
             <p className="text-sm font-semibold text-white">Send payment to @{recipientUsername}</p>
             <p className="mt-1 text-xs text-white/45">
@@ -118,14 +114,15 @@ export function UsernameDirectPaymentModal({
             type="button"
             onClick={closeModal}
             disabled={isBusy}
+            aria-label="Close"
             className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             Close
           </button>
         </div>
 
-        <div style={glassCard} className="space-y-5 p-6">
-          <div className="rounded-xl border border-white/8 px-3 py-3" style={{ background: 'oklch(1 0 0 / 3%)' }}>
+        <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
+          <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
             <p className="text-xs uppercase tracking-wide text-white/40">Recipient</p>
             <p className="mt-1 text-sm font-semibold text-white">@{recipientUsername}</p>
             <p className="mt-1 break-all font-mono text-xs text-white/55">{recipientAddress}</p>
@@ -198,14 +195,13 @@ export function UsernameDirectPaymentModal({
             type="button"
             onClick={handleSubmit}
             disabled={!isConnected || !label.trim() || !amount.trim() || !!amountError || isBusy}
-            className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+            className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isBusy ? 'Continue in wallet...' : `Send instantly to @${recipientUsername}`}
           </button>
 
           {receiptUrl && (
-            <div className="space-y-3 rounded-xl border border-white/8 p-4" style={{ background: 'oklch(1 0 0 / 3%)' }}>
+            <div className="space-y-3 rounded-xl border border-white/8 bg-white/[0.03] p-4">
               <p className="text-sm font-semibold text-white">Payment receipt</p>
               <a
                 href={receiptUrl}

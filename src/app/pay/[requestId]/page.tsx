@@ -3,6 +3,7 @@ import { use, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useAccount } from 'wagmi'
+import { AlertTriangle, SearchX } from 'lucide-react'
 import { usePaymentRequest } from '@/hooks/usePaymentRequest'
 import { useRequestPayments } from '@/hooks/useRequestPayments'
 import { getTokenByAddress, isNativeToken } from '@/lib/tokens'
@@ -14,13 +15,6 @@ import { QRDisplay } from '@/components/QRDisplay'
 import { formatEther, formatUnits } from 'viem'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-
-const glassCard = {
-  background: 'oklch(0.13 0.03 264 / 0.8)',
-  border: '1px solid oklch(1 0 0 / 8%)',
-  backdropFilter: 'blur(20px)',
-  borderRadius: '16px',
-} as React.CSSProperties
 
 export default function PayPage({
   params,
@@ -40,14 +34,15 @@ export default function PayPage({
 
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
-  const bg = { background: 'oklch(0.09 0.025 264)' } as React.CSSProperties
-
   if (!id) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4" style={{ background: 'oklch(0.09 0.025 264)' }}>
-        <div style={glassCard} className="max-w-sm w-full p-8 text-center">
-          <div className="text-4xl mb-3">⚠️</div>
-          <p className="text-white/60">Invalid payment request ID</p>
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-card p-8 text-center">
+          <AlertTriangle className="mx-auto text-destructive" size={28} />
+          <p className="text-muted-foreground">Invalid payment request ID</p>
+          <Link href="/" className="inline-block text-sm text-primary hover:underline">
+            Back to Pay LitVM
+          </Link>
         </div>
       </main>
     )
@@ -55,10 +50,10 @@ export default function PayPage({
 
   if (isLoading) {
     return (
-      <main className="min-h-screen flex items-center justify-center" style={bg}>
+      <main className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
-          <p className="text-white/50 text-sm">Loading...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </main>
     )
@@ -67,17 +62,17 @@ export default function PayPage({
   if (!request?.recipient || request.recipient === ZERO_ADDRESS) {
     if (error) {
       return (
-        <main className="min-h-screen flex items-center justify-center px-4" style={bg}>
-          <div style={glassCard} className="max-w-sm w-full p-8 text-center space-y-4">
-            <div className="text-4xl">⚠️</div>
+        <main className="flex min-h-screen items-center justify-center bg-background px-4">
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-8 text-center">
+            <AlertTriangle className="mx-auto text-destructive" size={28} />
             <div className="space-y-2">
-              <p className="text-white">Unable to load payment request</p>
-              <p className="text-sm text-white/55 break-words">{(error as Error).message}</p>
+              <p className="text-foreground">Unable to load payment request</p>
+              <p className="break-words text-sm text-muted-foreground">{(error as Error).message}</p>
             </div>
             <button
               type="button"
               onClick={() => refetch()}
-              className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-medium text-white/80 transition-all hover:bg-white/10"
+              className="w-full rounded-xl border border-border bg-white/5 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-white/10"
             >
               Retry
             </button>
@@ -87,10 +82,13 @@ export default function PayPage({
     }
 
     return (
-      <main className="min-h-screen flex items-center justify-center px-4" style={bg}>
-        <div style={glassCard} className="max-w-sm w-full p-8 text-center">
-          <div className="text-4xl mb-3">🔍</div>
-          <p className="text-white/60">Payment request not found</p>
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm space-y-3 rounded-2xl border border-border bg-card p-8 text-center">
+          <SearchX className="mx-auto text-muted-foreground" size={28} />
+          <p className="text-muted-foreground">Payment request not found</p>
+          <Link href="/" className="inline-block text-sm text-primary hover:underline">
+            Back to Pay LitVM
+          </Link>
         </div>
       </main>
     )
@@ -105,42 +103,34 @@ export default function PayPage({
   const isClosed = !request.reusable && request.paid
 
   return (
-    <main className="min-h-screen relative overflow-hidden" style={bg}>
-      {/* Ambient glow */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full opacity-15"
-          style={{ background: 'radial-gradient(circle, oklch(0.62 0.19 261), transparent 70%)' }} />
-        <div className="absolute -bottom-32 -right-16 w-80 h-80 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, oklch(0.55 0.2 274), transparent 70%)' }} />
-      </div>
-
-      <div className="relative max-w-md mx-auto px-4 py-8 space-y-6">
+    <main className="min-h-screen bg-background">
+      <div className="mx-auto max-w-md space-y-6 px-4 py-8">
         {/* Header */}
         <header className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-            <div className="relative w-8 h-8 rounded-lg overflow-hidden ring-1 ring-white/10">
-              <Image src="/logo.png" alt="LitVM" fill className="object-cover" priority unoptimized />
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-border">
+              <Image src="/logo.png" alt="Pay LitVM" fill className="object-cover" priority unoptimized />
             </div>
-            <span className="font-bold text-white text-lg">Pay LitVM</span>
+            <span className="text-lg font-bold text-foreground">Pay LitVM</span>
           </Link>
           <WalletConnect />
         </header>
 
         {/* Payment card */}
-        <div style={glassCard} className="p-6 space-y-5">
+        <div className="space-y-5 rounded-2xl border border-border bg-card p-6">
           <div className="space-y-1">
-            <p className="text-xs text-white/40 uppercase tracking-wide">Payment request</p>
-            <h1 className="text-xl font-bold text-white">{request.label}</h1>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Payment request</p>
+            <h1 className="text-xl font-bold text-foreground">{request.label}</h1>
             {request.reusable && (
-              <p className="text-sm text-blue-300">Reusable payment link</p>
+              <p className="text-sm text-primary">Reusable payment link</p>
             )}
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-3xl font-bold text-white">{amountDisplay}</p>
+              <p className="font-mono text-3xl font-bold tabular-nums text-foreground">{amountDisplay}</p>
               {!isNative && (
-                <p className="text-xs text-white/40 mt-1">ERC-20 token payment</p>
+                <p className="mt-1 text-xs text-muted-foreground">ERC-20 token payment</p>
               )}
             </div>
             <PaymentStatus
@@ -153,17 +143,15 @@ export default function PayPage({
             />
           </div>
 
-          <div className="rounded-xl p-3 border border-white/8"
-            style={{ background: 'oklch(1 0 0 / 3%)' }}>
-            <p className="text-xs text-white/40 mb-0.5">Recipient</p>
-            <p className="text-xs font-mono text-white/60 break-all">{request.recipient}</p>
+          <div className="rounded-xl border border-border bg-white/[0.03] p-3">
+            <p className="mb-0.5 text-xs text-muted-foreground">Recipient</p>
+            <p className="break-all font-mono text-xs text-foreground/80">{request.recipient}</p>
           </div>
 
           {request.payoutAddress && request.payoutAddress !== request.recipient && request.payoutAddress !== ZERO_ADDRESS && (
-            <div className="rounded-xl border border-amber-500/15 p-3"
-              style={{ background: 'oklch(1 0 0 / 3%)' }}>
-              <p className="text-xs text-amber-200/70 mb-0.5">Fallback payout address</p>
-              <p className="text-xs font-mono text-amber-100/80 break-all">{request.payoutAddress}</p>
+            <div className="rounded-xl border border-amber-500/15 bg-white/[0.03] p-3">
+              <p className="mb-0.5 text-xs text-amber-200/70">Fallback payout address</p>
+              <p className="break-all font-mono text-xs text-amber-100/80">{request.payoutAddress}</p>
             </div>
           )}
 
@@ -179,13 +167,13 @@ export default function PayPage({
         </div>
 
         {myPayments.length > 0 && (
-          <div style={glassCard} className="p-6 space-y-3">
+          <div className="space-y-3 rounded-2xl border border-border bg-card p-6">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-white/40 uppercase tracking-wide">My payments</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">My payments</p>
               <button
                 type="button"
                 onClick={() => setShowPayments(v => !v)}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-xl border border-border bg-white/5 px-3 py-1.5 text-xs font-medium text-foreground/70 transition-colors hover:bg-white/10 hover:text-foreground"
               >
                 {showPayments ? 'Hide' : `Show (${myPayments.length})`}
               </button>
@@ -196,24 +184,23 @@ export default function PayPage({
                 {myPayments.map((payment, index) => (
                   <div
                     key={`${payment.payer}-${payment.paidAt.toString()}-${index}`}
-                    className="rounded-xl border border-white/8 px-3 py-3"
-                    style={{ background: 'oklch(1 0 0 / 3%)' }}
+                    className="rounded-xl border border-border bg-white/[0.03] px-3 py-3"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white">
+                        <p className="font-mono text-sm font-semibold tabular-nums text-foreground">
                           {isNative ? formatEther(payment.amount) : formatUnits(payment.amount, token.decimals)} {token.symbol}
                         </p>
                         <a
                           href={`https://liteforge.explorer.caldera.xyz/address/${payment.payer}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-1 block font-mono text-xs text-blue-400/70 hover:text-blue-400 break-all transition-colors"
+                          className="mt-1 block break-all font-mono text-xs text-primary/70 transition-colors hover:text-primary"
                         >
                           {payment.payer}
                         </a>
                       </div>
-                      <p className="shrink-0 text-right text-xs text-white/45">
+                      <p className="shrink-0 text-right text-xs text-muted-foreground">
                         {new Date(Number(payment.paidAt) * 1000).toLocaleString()}
                       </p>
                     </div>
@@ -226,8 +213,8 @@ export default function PayPage({
 
         {/* QR code */}
         {pageUrl && (
-          <div style={glassCard} className="p-6 flex flex-col items-center gap-3">
-            <p className="text-xs text-white/40 uppercase tracking-wide">Share QR</p>
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Share QR</p>
             <QRDisplay url={pageUrl} label={request.label} />
           </div>
         )}

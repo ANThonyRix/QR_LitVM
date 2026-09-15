@@ -9,6 +9,7 @@ import { validatePaymentAmount } from '@/lib/validation'
 import { useDirectPayment } from '@/hooks/useDirectPayment'
 import { WalletConnect } from '@/components/WalletConnect'
 import { WidgetMethodSelector } from '@/components/WidgetMethodSelector'
+import { CheckCircle2 } from 'lucide-react'
 
 const WIDGET_RESIZE_MESSAGE = 'pay-litvm:widget-resize'
 
@@ -154,8 +155,8 @@ export default function MultiTokenWidgetPage({
         <div className="mx-auto w-full max-w-[560px] rounded-[28px] border border-emerald-400/15 bg-[#09101d] p-6 shadow-[0_30px_90px_rgba(2,6,23,.55)]">
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-4 text-sm font-medium text-emerald-300">
-              <span className="text-lg">✓</span>
-              <span>Paid {displayAmount} {selectedToken.symbol}</span>
+              <CheckCircle2 size={18} />
+              <span className="font-mono tabular-nums">Paid {displayAmount} {selectedToken.symbol}</span>
             </div>
             {receiptUrl && (
               <a
@@ -199,7 +200,7 @@ export default function MultiTokenWidgetPage({
                 Amount
               </p>
               {amount ? (
-                <p className="text-3xl font-semibold text-white">
+                <p className="font-mono text-3xl font-semibold tabular-nums text-white">
                   {amount} {selectedToken.symbol}
                 </p>
               ) : (
@@ -234,9 +235,9 @@ export default function MultiTokenWidgetPage({
                       type="button"
                       onClick={() => setSelectedToken(token)}
                       disabled={isBusy}
-                      className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                      className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
                         selectedToken.symbol === token.symbol
-                          ? 'border-blue-500/50 bg-blue-500/20 text-blue-200 shadow-[0_0_12px_rgba(59,130,246,.15)]'
+                          ? 'border-blue-500/50 bg-blue-500/20 text-blue-200'
                           : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                       } disabled:cursor-not-allowed disabled:opacity-60`}
                     >
@@ -284,8 +285,7 @@ export default function MultiTokenWidgetPage({
                   type="button"
                   onClick={handlePay}
                   disabled={!isConnected || !(amount || customAmount) || !!amountError || isBusy}
-                  className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.62 0.19 261), oklch(0.55 0.2 274))' }}
+                  className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isBusy
                     ? 'Continue in wallet...'
