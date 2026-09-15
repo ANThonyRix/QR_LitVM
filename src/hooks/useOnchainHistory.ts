@@ -87,6 +87,69 @@ function getModernHistoryAbi() {
   return PAYMENT_REQUEST_V2_ABI
 }
 
+const LOG_CHUNK_BLOCKS = 2_000_000n
+const MIN_LOG_CHUNK_BLOCKS = 50_000n
+const LOG_CHUNK_CONCURRENCY = 4
+
+type PublicClient = NonNullable<ReturnType<typeof usePublicClient>>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GetLogsParams = any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LogsResult = any[]
+
+async function fetchLogsInRange(
+  publicClient: PublicClient,
+  params: GetLogsParams,
+  fromBlock: bigint,
+  toBlock: bigint,
+  chunkSize: bigint,
+): Promise<LogsResult> {
+  try {
+    return await publicClient.getLogs({ ...params, fromBlock, toBlock })
+  } catch (error) {
+    if (chunkSize <= MIN_LOG_CHUNK_BLOCKS || toBlock <= fromBlock) {
+      throw error
+    }
+
+    const mid = fromBlock + (toBlock - fromBlock) / 2n
+    const nextChunkSize = chunkSize / 2n
+    const [left, right] = await Promise.all([
+      fetchLogsInRange(publicClient, params, fromBlock, mid, nextChunkSize),
+      fetchLogsInRange(publicClient, params, mid + 1n, toBlock, nextChunkSize),
+    ])
+    return [...left, ...right]
+  }
+}
+
+// RPC providers time out on unbounded eth_getLogs ranges over the deployment
+// block's full history, so fetch in windows and shrink on failure.
+async function getLogsChunked(
+  publicClient: PublicClient,
+  params: GetLogsParams,
+  fromBlock: bigint,
+): Promise<LogsResult> {
+  const toBlock = await publicClient.getBlockNumber()
+
+  const ranges: Array<[bigint, bigint]> = []
+  let start = fromBlock
+  while (start <= toBlock) {
+    const end = start + LOG_CHUNK_BLOCKS > toBlock ? toBlock : start + LOG_CHUNK_BLOCKS
+    ranges.push([start, end])
+    start = end + 1n
+  }
+
+  const results: LogsResult = []
+  for (let i = 0; i < ranges.length; i += LOG_CHUNK_CONCURRENCY) {
+    const batch = ranges.slice(i, i + LOG_CHUNK_CONCURRENCY)
+    const batchResults = await Promise.all(
+      batch.map(([from, to]) => fetchLogsInRange(publicClient, params, from, to, LOG_CHUNK_BLOCKS)),
+    )
+    results.push(...batchResults.flat())
+  }
+
+  return results
+}
+
 async function readV1Requests(publicClient: NonNullable<ReturnType<typeof usePublicClient>>, ids: `0x${string}`[]) {
   const uniqueIds = [...new Set(ids)]
 
@@ -161,16 +224,18 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 name: 'RequestCreated',
               })
 
-              return client.getLogs({
-                address: CONTRACT_ADDRESS,
-                event: requestCreatedEvent,
-                args:
-                  CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
-                    ? { creator: walletAddress }
-                    : { recipient: walletAddress },
-                fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
-                toBlock: 'latest',
-              })
+              return getLogsChunked(
+                client,
+                {
+                  address: CONTRACT_ADDRESS,
+                  event: requestCreatedEvent,
+                  args:
+                    CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
+                      ? { creator: walletAddress }
+                      : { recipient: walletAddress },
+                },
+                CONTRACT_DEPLOYMENT_BLOCK,
+              )
             }
 
             const requestCreatedEvent = getAbiItem({
@@ -178,13 +243,15 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
               name: 'RequestCreated',
             })
 
-            return client.getLogs({
-              address: CONTRACT_ADDRESS,
-              event: requestCreatedEvent,
-              args: { recipient: walletAddress },
-              fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
-              toBlock: 'latest',
-            })
+            return getLogsChunked(
+              client,
+              {
+                address: CONTRACT_ADDRESS,
+                event: requestCreatedEvent,
+                args: { recipient: walletAddress },
+              },
+              CONTRACT_DEPLOYMENT_BLOCK,
+            )
           })(),
           (async () => {
             if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') {
@@ -193,27 +260,31 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 name: 'RequestPaid',
               })
 
-              return client.getLogs({
+              return getLogsChunked(
+                client,
+                {
+                  address: CONTRACT_ADDRESS,
+                  event: requestPaidEvent,
+                  args: { payer: walletAddress },
+                },
+                CONTRACT_DEPLOYMENT_BLOCK,
+              )
+            }
+
+            const requestPaidEvent = getAbiItem({
+              abi: PAYMENT_REQUEST_V1_ABI,
+              name: 'RequestPaid',
+            })
+
+            return getLogsChunked(
+              client,
+              {
                 address: CONTRACT_ADDRESS,
                 event: requestPaidEvent,
                 args: { payer: walletAddress },
-                fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
-                toBlock: 'latest',
-              })
-            }
-
-            const requestPaidEvent = getAbiItem({
-              abi: PAYMENT_REQUEST_V1_ABI,
-              name: 'RequestPaid',
-            })
-
-            return client.getLogs({
-              address: CONTRACT_ADDRESS,
-              event: requestPaidEvent,
-              args: { payer: walletAddress },
-              fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
-              toBlock: 'latest',
-            })
+              },
+              CONTRACT_DEPLOYMENT_BLOCK,
+            )
           })(),
           (async () => {
             if (CONTRACT_VERSION === 'v2' || CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6') {
@@ -222,13 +293,15 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 name: 'RequestPaid',
               })
 
-              return client.getLogs({
-                address: CONTRACT_ADDRESS,
-                event: requestPaidEvent,
-                args: { recipient: walletAddress },
-                fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
-                toBlock: 'latest',
-              })
+              return getLogsChunked(
+                client,
+                {
+                  address: CONTRACT_ADDRESS,
+                  event: requestPaidEvent,
+                  args: { recipient: walletAddress },
+                },
+                CONTRACT_DEPLOYMENT_BLOCK,
+              )
             }
 
             const requestPaidEvent = getAbiItem({
@@ -236,12 +309,14 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
               name: 'RequestPaid',
             })
 
-            return client.getLogs({
-              address: CONTRACT_ADDRESS,
-              event: requestPaidEvent,
-              fromBlock: CONTRACT_DEPLOYMENT_BLOCK,
-              toBlock: 'latest',
-            })
+            return getLogsChunked(
+              client,
+              {
+                address: CONTRACT_ADDRESS,
+                event: requestPaidEvent,
+              },
+              CONTRACT_DEPLOYMENT_BLOCK,
+            )
           })(),
         ])
 
