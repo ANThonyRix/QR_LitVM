@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useAccount, usePublicClient } from 'wagmi'
-import { formatEther, getAbiItem } from 'viem'
+import { decodeEventLog, encodeEventTopics, formatEther, getAbiItem, type AbiEvent } from 'viem'
 import {
   CONTRACT_ADDRESS,
   CONTRACT_DEPLOYMENT_BLOCK,
   CONTRACT_VERSION,
 } from '@/lib/contract'
+import { LITVM_EXPLORER_URL } from '@/lib/litvmNetwork'
 import { PAYMENT_REQUEST_V1_ABI } from '@/lib/PaymentRequestV1.abi'
 import { PAYMENT_REQUEST_ABI as PAYMENT_REQUEST_V2_ABI } from '@/lib/PaymentRequest.abi'
 import { PAYMENT_REQUEST_V3_ABI } from '@/lib/PaymentRequestV3.abi'
@@ -87,67 +88,100 @@ function getModernHistoryAbi() {
   return PAYMENT_REQUEST_V2_ABI
 }
 
-const LOG_CHUNK_BLOCKS = 2_000_000n
-const MIN_LOG_CHUNK_BLOCKS = 50_000n
-const LOG_CHUNK_CONCURRENCY = 4
+const EXPLORER_PAGE_LIMIT = 1000
 
-type PublicClient = NonNullable<ReturnType<typeof usePublicClient>>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GetLogsParams = any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LogsResult = any[]
-
-async function fetchLogsInRange(
-  publicClient: PublicClient,
-  params: GetLogsParams,
-  fromBlock: bigint,
-  toBlock: bigint,
-  chunkSize: bigint,
-): Promise<LogsResult> {
-  try {
-    return await publicClient.getLogs({ ...params, fromBlock, toBlock })
-  } catch (error) {
-    if (chunkSize <= MIN_LOG_CHUNK_BLOCKS || toBlock <= fromBlock) {
-      throw error
-    }
-
-    const mid = fromBlock + (toBlock - fromBlock) / 2n
-    const nextChunkSize = chunkSize / 2n
-    const [left, right] = await Promise.all([
-      fetchLogsInRange(publicClient, params, fromBlock, mid, nextChunkSize),
-      fetchLogsInRange(publicClient, params, mid + 1n, toBlock, nextChunkSize),
-    ])
-    return [...left, ...right]
-  }
+type ExplorerLog = {
+  blockNumber: `0x${string}`
+  data: `0x${string}`
+  topics: `0x${string}`[]
+  transactionHash: `0x${string}`
+  logIndex: `0x${string}`
 }
 
-// RPC providers time out on unbounded eth_getLogs ranges over the deployment
-// block's full history, so fetch in windows and shrink on failure.
-async function getLogsChunked(
-  publicClient: PublicClient,
-  params: GetLogsParams,
+type ExplorerLogsParams = {
+  event: AbiEvent
+  args?: Record<string, `0x${string}`>
+}
+
+// LitVM RPC eth_getLogs times out on any range wider than a few blocks,
+// so logs are read from the Blockscout explorer API instead.
+async function fetchExplorerLogs(
+  params: ExplorerLogsParams,
   fromBlock: bigint,
-): Promise<LogsResult> {
-  const toBlock = await publicClient.getBlockNumber()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any[]> {
+  const topics = encodeEventTopics({
+    abi: [params.event],
+    eventName: params.event.name,
+    args: params.args,
+  } as Parameters<typeof encodeEventTopics>[0])
 
-  const ranges: Array<[bigint, bigint]> = []
-  let start = fromBlock
-  while (start <= toBlock) {
-    const end = start + LOG_CHUNK_BLOCKS > toBlock ? toBlock : start + LOG_CHUNK_BLOCKS
-    ranges.push([start, end])
-    start = end + 1n
+  const query = new URLSearchParams({
+    module: 'logs',
+    action: 'getLogs',
+    address: CONTRACT_ADDRESS,
+    toBlock: 'latest',
+  })
+  topics.forEach((topic, index) => {
+    if (typeof topic !== 'string') {
+      return
+    }
+    query.set(`topic${index}`, topic)
+    if (index > 0) {
+      query.set(`topic0_${index}_opr`, 'and')
+    }
+  })
+
+  const seen = new Set<string>()
+  const decoded: Array<{ args: Record<string, unknown>; blockNumber: bigint }> = []
+  let cursor = fromBlock
+
+  while (true) {
+    query.set('fromBlock', cursor.toString())
+    const response = await fetch(`${LITVM_EXPLORER_URL}/api?${query}`)
+    if (!response.ok) {
+      throw new Error(`Explorer request failed with status ${response.status}.`)
+    }
+
+    const json = (await response.json()) as { message?: string; result?: ExplorerLog[] | string | null }
+    if (!Array.isArray(json.result)) {
+      if (/no logs found/i.test(json.message ?? '')) {
+        break
+      }
+      throw new Error(`Explorer error: ${typeof json.result === 'string' ? json.result : json.message}`)
+    }
+
+    for (const log of json.result) {
+      const key = `${log.transactionHash}:${log.logIndex}`
+      if (seen.has(key)) {
+        continue
+      }
+      seen.add(key)
+
+      try {
+        const { args } = decodeEventLog({
+          abi: [params.event],
+          data: log.data,
+          topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
+        })
+        decoded.push({ args: args as Record<string, unknown>, blockNumber: BigInt(log.blockNumber) })
+      } catch {
+        continue
+      }
+    }
+
+    if (json.result.length < EXPLORER_PAGE_LIMIT) {
+      break
+    }
+
+    const lastBlock = BigInt(json.result[json.result.length - 1].blockNumber)
+    if (lastBlock <= cursor) {
+      break
+    }
+    cursor = lastBlock
   }
 
-  const results: LogsResult = []
-  for (let i = 0; i < ranges.length; i += LOG_CHUNK_CONCURRENCY) {
-    const batch = ranges.slice(i, i + LOG_CHUNK_CONCURRENCY)
-    const batchResults = await Promise.all(
-      batch.map(([from, to]) => fetchLogsInRange(publicClient, params, from, to, LOG_CHUNK_BLOCKS)),
-    )
-    results.push(...batchResults.flat())
-  }
-
-  return results
+  return decoded
 }
 
 async function readV1Requests(publicClient: NonNullable<ReturnType<typeof usePublicClient>>, ids: `0x${string}`[]) {
@@ -224,10 +258,8 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 name: 'RequestCreated',
               })
 
-              return getLogsChunked(
-                client,
+              return fetchExplorerLogs(
                 {
-                  address: CONTRACT_ADDRESS,
                   event: requestCreatedEvent,
                   args:
                     CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
@@ -243,10 +275,8 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
               name: 'RequestCreated',
             })
 
-            return getLogsChunked(
-              client,
+            return fetchExplorerLogs(
               {
-                address: CONTRACT_ADDRESS,
                 event: requestCreatedEvent,
                 args: { recipient: walletAddress },
               },
@@ -260,10 +290,8 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 name: 'RequestPaid',
               })
 
-              return getLogsChunked(
-                client,
+              return fetchExplorerLogs(
                 {
-                  address: CONTRACT_ADDRESS,
                   event: requestPaidEvent,
                   args: { payer: walletAddress },
                 },
@@ -276,10 +304,8 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
               name: 'RequestPaid',
             })
 
-            return getLogsChunked(
-              client,
+            return fetchExplorerLogs(
               {
-                address: CONTRACT_ADDRESS,
                 event: requestPaidEvent,
                 args: { payer: walletAddress },
               },
@@ -293,10 +319,8 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
                 name: 'RequestPaid',
               })
 
-              return getLogsChunked(
-                client,
+              return fetchExplorerLogs(
                 {
-                  address: CONTRACT_ADDRESS,
                   event: requestPaidEvent,
                   args: { recipient: walletAddress },
                 },
@@ -309,10 +333,8 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
               name: 'RequestPaid',
             })
 
-            return getLogsChunked(
-              client,
+            return fetchExplorerLogs(
               {
-                address: CONTRACT_ADDRESS,
                 event: requestPaidEvent,
               },
               CONTRACT_DEPLOYMENT_BLOCK,
