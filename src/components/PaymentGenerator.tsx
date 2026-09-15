@@ -6,6 +6,7 @@ import { CONTRACT_VERSION } from '@/lib/contract'
 import { TOKENS, type TokenConfig } from '@/lib/tokens'
 import { useCreateRequest } from '@/hooks/useCreateRequest'
 import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
+import { rememberRequestId } from '@/lib/historyCache'
 import { isBandwidthLimitError } from '@/lib/litvmNetwork'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,7 +29,7 @@ export function PaymentGenerator({
   recipientAddress,
   recipientUsername,
 }: PaymentGeneratorProps = {}) {
-  const { isConnected } = useAccount()
+  const { address, isConnected } = useAccount()
   const supportsReusableLinks = CONTRACT_VERSION === 'v3' || CONTRACT_VERSION === 'v4' || CONTRACT_VERSION === 'v5' || CONTRACT_VERSION === 'v6'
   const supportsTokens = CONTRACT_VERSION === 'v6'
   const createsForExternalRecipient =
@@ -54,8 +55,11 @@ export function PaymentGenerator({
 
     const url = `${window.location.origin}/pay/${requestId}`
     setPayUrl(url)
+    if (address) {
+      rememberRequestId(address, 'created', requestId)
+    }
     window.dispatchEvent(new Event(ONCHAIN_HISTORY_REFRESH_EVENT))
-  }, [requestId])
+  }, [address, requestId])
 
   const trimmedPayoutAddress = payoutAddress.trim()
   const hasCustomPayoutAddress = trimmedPayoutAddress.length > 0

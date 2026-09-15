@@ -3,8 +3,10 @@ import { useState } from 'react'
 import { useAccount, usePublicClient, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contract'
 import { ERC20_ABI } from '@/lib/erc20.abi'
+import { rememberRequestId } from '@/lib/historyCache'
 import { ensureHealthyLitvmWalletRpc } from '@/lib/litvmNetwork'
 import { isNativeToken } from '@/lib/tokens'
+import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
 import { parseEther, parseUnits } from 'viem'
 
 export function usePay() {
@@ -14,6 +16,24 @@ export function usePay() {
   const { address } = useAccount()
   const publicClient = usePublicClient()
   const { writeContractAsync, data: hash, isPending, error } = useWriteContract()
+
+  function rememberPaymentOnSuccess(payHash: `0x${string}`, requestId: `0x${string}`) {
+    if (!publicClient || !address) {
+      return
+    }
+
+    const wallet = address
+    publicClient
+      .waitForTransactionReceipt({ hash: payHash })
+      .then(receipt => {
+        if (receipt.status !== 'success') {
+          return
+        }
+        rememberRequestId(wallet, 'paid', requestId)
+        window.dispatchEvent(new Event(ONCHAIN_HISTORY_REFRESH_EVENT))
+      })
+      .catch(() => undefined)
+  }
 
   async function pay(
     requestId: `0x${string}`,
@@ -30,13 +50,14 @@ export function usePay() {
 
       if (isNativeToken(tokenAddress)) {
         // Native zkLTC payment
-        await writeContractAsync({
+        const payHash = await writeContractAsync({
           address: CONTRACT_ADDRESS,
           abi: CONTRACT_ABI,
           functionName: 'pay',
           args: [requestId],
           value: parseEther(amountRaw),
         })
+        rememberPaymentOnSuccess(payHash, requestId)
       } else {
         // ERC-20 token payment (approve + payWithToken)
         const amount = parseUnits(amountRaw, tokenDecimals ?? 6)
@@ -67,12 +88,13 @@ export function usePay() {
         }
 
         // Pay with token
-        await writeContractAsync({
+        const payHash = await writeContractAsync({
           address: CONTRACT_ADDRESS,
           abi: CONTRACT_ABI,
           functionName: 'payWithToken',
           args: [requestId, amount],
         })
+        rememberPaymentOnSuccess(payHash, requestId)
       }
     } catch (caughtError) {
       setLocalError(caughtError instanceof Error ? caughtError : new Error('Unable to complete the payment.'))

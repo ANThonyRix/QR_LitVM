@@ -8,6 +8,7 @@ import {
   CONTRACT_DEPLOYMENT_BLOCK,
   CONTRACT_VERSION,
 } from '@/lib/contract'
+import { getRememberedRequestIds } from '@/lib/historyCache'
 import { LITVM_EXPLORER_URL } from '@/lib/litvmNetwork'
 import { PAYMENT_REQUEST_V1_ABI } from '@/lib/PaymentRequestV1.abi'
 import { PAYMENT_REQUEST_ABI as PAYMENT_REQUEST_V2_ABI } from '@/lib/PaymentRequest.abi'
@@ -182,6 +183,92 @@ async function fetchExplorerLogs(
   }
 
   return decoded
+}
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const MAX_PAYMENTS_PER_REQUEST = 50n
+
+type V6RequestState = {
+  id: `0x${string}`
+  creator: `0x${string}`
+  recipient: `0x${string}`
+  amount: bigint
+  label: string
+  createdAt: bigint
+  paymentCount: bigint
+}
+
+type V6Payment = {
+  payer: `0x${string}`
+  amount: bigint
+  paidAt: bigint
+}
+
+// The explorer skips some blocks, so contract state is the source of truth
+// for requests this wallet is known to have created or paid.
+async function readV6Requests(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  ids: `0x${string}`[],
+) {
+  const results = await Promise.all(
+    [...new Set(ids)].map(async (id): Promise<V6RequestState | null> => {
+      try {
+        const raw = (await publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: PAYMENT_REQUEST_V6_ABI,
+          functionName: 'requests',
+          args: [id],
+        })) as readonly unknown[]
+
+        const creator = raw[0] as `0x${string}`
+        if (creator === ZERO_ADDRESS) {
+          return null
+        }
+
+        return {
+          id,
+          creator,
+          recipient: raw[1] as `0x${string}`,
+          amount: raw[2] as bigint,
+          label: raw[3] as string,
+          createdAt: raw[4] as bigint,
+          paymentCount: raw[9] as bigint,
+        }
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  return results.filter((state): state is V6RequestState => state !== null)
+}
+
+async function readV6Payments(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  id: `0x${string}`,
+  paymentCount: bigint,
+) {
+  const start = paymentCount > MAX_PAYMENTS_PER_REQUEST ? paymentCount - MAX_PAYMENTS_PER_REQUEST : 0n
+  const indices = Array.from({ length: Number(paymentCount - start) }, (_, offset) => start + BigInt(offset))
+
+  const results = await Promise.all(
+    indices.map(async (index): Promise<V6Payment | null> => {
+      try {
+        const [payer, amount, paidAt] = (await publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: PAYMENT_REQUEST_V6_ABI,
+          functionName: 'getPayment',
+          args: [id, index],
+        })) as readonly [`0x${string}`, bigint, bigint]
+
+        return { payer, amount, paidAt }
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  return results.filter((payment): payment is V6Payment => payment !== null)
 }
 
 async function readV1Requests(publicClient: NonNullable<ReturnType<typeof usePublicClient>>, ids: `0x${string}`[]) {
@@ -437,6 +524,82 @@ export function useOnchainHistory(refreshKey: number): UseOnchainHistoryResult {
             })
             .filter(Boolean) as OnchainHistoryEntry[])
           nextReceivedEntries.sort((a, b) => b.timestamp - a.timestamp)
+
+          if (CONTRACT_VERSION === 'v6') {
+            const wallet = walletAddress.toLowerCase()
+            const remembered = getRememberedRequestIds(walletAddress)
+            const states = await readV6Requests(client, [
+              ...nextCreatedEntries.map(entry => entry.id),
+              ...remembered.created,
+              ...remembered.paid,
+            ])
+
+            if (cancelled) {
+              return
+            }
+
+            const createdIds = new Set(nextCreatedEntries.map(entry => entry.id))
+            for (const state of states) {
+              if (state.creator.toLowerCase() !== wallet || createdIds.has(state.id)) {
+                continue
+              }
+              createdIds.add(state.id)
+              nextCreatedEntries.push({
+                id: state.id,
+                url: toPaymentUrl(state.id),
+                label: state.label,
+                amount: state.amount,
+                amountDisplay: toAmountDisplay(state.amount),
+                timestamp: Number(state.createdAt),
+                counterparty: state.recipient,
+              })
+            }
+
+            const paymentsByRequest = await Promise.all(
+              states
+                .filter(
+                  state =>
+                    state.paymentCount > 0n &&
+                    (state.recipient.toLowerCase() === wallet || remembered.paid.includes(state.id)),
+                )
+                .map(async state => [state, await readV6Payments(client, state.id, state.paymentCount)] as const),
+            )
+
+            if (cancelled) {
+              return
+            }
+
+            const paidKeys = new Set(nextPaidEntries.map(entry => `${entry.id}:${entry.timestamp}`))
+            const receivedKeys = new Set(nextReceivedEntries.map(entry => `${entry.id}:${entry.timestamp}`))
+            for (const [state, payments] of paymentsByRequest) {
+              for (const payment of payments) {
+                const timestamp = Number(payment.paidAt)
+                const key = `${state.id}:${timestamp}`
+                const entry = {
+                  id: state.id,
+                  url: toPaymentUrl(state.id),
+                  label: state.label,
+                  amount: payment.amount,
+                  amountDisplay: toAmountDisplay(payment.amount),
+                  timestamp,
+                }
+
+                if (state.recipient.toLowerCase() === wallet && !receivedKeys.has(key)) {
+                  receivedKeys.add(key)
+                  nextReceivedEntries.push({ ...entry, counterparty: payment.payer })
+                }
+
+                if (payment.payer.toLowerCase() === wallet && !paidKeys.has(key)) {
+                  paidKeys.add(key)
+                  nextPaidEntries.push({ ...entry, counterparty: state.recipient })
+                }
+              }
+            }
+
+            nextCreatedEntries.sort((a, b) => b.timestamp - a.timestamp)
+            nextPaidEntries.sort((a, b) => b.timestamp - a.timestamp)
+            nextReceivedEntries.sort((a, b) => b.timestamp - a.timestamp)
+          }
 
           setCreatedEntries(nextCreatedEntries)
           setPaidEntries(nextPaidEntries)

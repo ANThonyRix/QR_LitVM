@@ -7,6 +7,7 @@ import { CONTRACT_ADDRESS, CONTRACT_VERSION } from '@/lib/contract'
 import { ERC20_ABI } from '@/lib/erc20.abi'
 import { isNativeToken } from '@/lib/tokens'
 import { ensureHealthyLitvmWalletRpc } from '@/lib/litvmNetwork'
+import { rememberRequestId } from '@/lib/historyCache'
 import { ONCHAIN_HISTORY_REFRESH_EVENT } from '@/hooks/useOnchainHistory'
 import { PAYMENT_REQUEST_V4_ABI } from '@/lib/PaymentRequestV4.abi'
 import { PAYMENT_REQUEST_V5_ABI } from '@/lib/PaymentRequestV5.abi'
@@ -124,6 +125,7 @@ export function useDirectPayment() {
       }
 
       setRequestId(createdRequestId)
+      rememberRequestId(address, 'created', createdRequestId)
 
       // Approve token if needed
       if (isToken) {
@@ -171,6 +173,7 @@ export function useDirectPayment() {
 
       setStatus('waiting_payment')
       await publicClient.waitForTransactionReceipt({ hash: payHash })
+      rememberRequestId(address, 'paid', createdRequestId)
 
       setStatus('success')
       window.dispatchEvent(new Event(ONCHAIN_HISTORY_REFRESH_EVENT))
